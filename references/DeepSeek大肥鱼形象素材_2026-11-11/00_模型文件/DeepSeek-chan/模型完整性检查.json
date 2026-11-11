@@ -1,0 +1,16 @@
+{
+  "DeepSeek-chan.vrm": {
+    "bytes": 33616628,
+    "format": "GLB / VRM",
+    "extensions": [
+      "VRMC_springBone",
+      "VRMC_vrm"
+    ],
+    "sha256": "9fa455e48ee2271dc7c2b62f2f2edcd47709406ca89067b6f544979589958f42"
+  },
+  "DeepSeek-chan.blend": {
+    "bytes": 26536472,
+    "compressed_container": "zstd integrity passed",
+    "sha256": "b9326bcc62988be97a22d3ef73c8401121dfbd321a5bfca95a84238d3052602a"
+  }
+}

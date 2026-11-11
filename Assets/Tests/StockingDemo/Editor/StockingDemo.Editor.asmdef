@@ -1,0 +1,6 @@
+{
+  "name": "StockingDemo.Editor",
+  "references": ["XXD.Visual.Unity", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}

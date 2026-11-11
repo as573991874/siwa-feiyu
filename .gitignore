@@ -1,0 +1,20 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+# Videos and render archives remain local.
+.claude/jobs/media/swml-v1/
+archives/render-frames/
+references/videos/
+# The full downloaded reference collection stays local; only core 3D models are committed.
+references/DeepSeek大肥鱼形象素材_2026-11-11/01_三维模型_VRM与Blender/
+references/DeepSeek大肥鱼形象素材_2026-11-11/02_三维模型_蓝色小肥鱼/
+references/DeepSeek大肥鱼形象素材_2026-11-11/03_成年形象与社区图集/
+references/DeepSeek大肥鱼形象素材_2026-11-11/04_Q版六视图与古风设定/
+references/DeepSeek大肥鱼形象素材_2026-11-11/05_Q版与少女版_2点5D换装/
+references/DeepSeek大肥鱼形象素材_2026-11-11/06_Q版桌宠与动画/
+references/DeepSeek大肥鱼形象素材_2026-11-11/07_程序化卡通鲸鱼/
+references/DeepSeek大肥鱼形象素材_2026-11-11/08_成年形象姿势工作室/
+references/DeepSeek大肥鱼形象素材_2026-11-11/09_推荐成年形象/
+references/DeepSeek大肥鱼形象素材_2026-11-11/下载日志/
+tools/
+docs/
