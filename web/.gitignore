@@ -1,0 +1,7 @@
+node_modules/
+dist/
+shots/
+# 模型从 references/ 复制而来（npm run setup），不重复入库
+public/models/
+# 录像不入库
+preview/*.mp4

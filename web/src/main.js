@@ -1,0 +1,491 @@
+// 撕袜大作战 · 肥鱼快跑：竖屏第一人称追逐。
+// 按住冲刺追近（高机位、看得到全身）→ 松开进入近身视角 → 她哪条腿后甩，就用哪只手拽住撕破。
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+import { fitLeg } from './legfit.js';
+import { StockingLeg } from './stocking.js';
+import { Skirt } from './skirt.js';
+import { Girl } from './girl.js';
+import { loadMan } from './man.js';
+import { Boardwalk } from './env.js';
+import * as sfx from './audio.js';
+import { makeSharedUniforms, makeLegacyLegMaterial, makeBackdrop } from './shaders.js';
+
+const query = new URLSearchParams(location.search);
+const MANUAL = query.has('manual'); // 逐帧推进（截图 / 录像）
+const $ = (id) => document.getElementById(id);
+const lerp = (a, b, t) => a + (b - a) * t, clamp = (x, a, b) => Math.min(b, Math.max(a, x)), smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+
+// 布料参数
+const params = {
+  pinchRadius: 0.016, maxPull: 0.2, windowRows: 21, windowCols: 20,
+  substeps: 1, iterations: 12, stretchK: 0.85, compressK: 0.05, stick: 0.85, press: 0.00013, damping: 0.8, slackDecay: 7,
+  tearDist: 0.085, holeSize: 0.82, runLength: 0.9,
+};
+
+// ------------------------------------------------------------ 关卡（心流：教学 → 加码 → 加码 → 喘息 → 高压 → 决战）
+const STYLE = {
+  black: { color: '#1b1310', sheen: '#8f7b72', dens: 1.0 }, white: { color: '#dcd8e2', sheen: '#ffffff', dens: 1.5 },
+  nude: { color: '#a8775c', sheen: '#f0cdb8', dens: 0.75 }, pink: { color: '#d9809f', sheen: '#ffd2e0', dens: 1.1 },
+  net: { color: '#120e0d', sheen: '#6f625c', dens: 1.0, net: 1 },
+};
+// hold: 拽多久才撕得开；win: 后甩到多高才够得着（越大窗口越窄）；escape: 近身后她甩开你的速度
+const LEVELS = [
+  { name: '① 海边晨跑', sub: '超薄黑丝 · 慢跑', style: 'black', thick: 0.6, hold: 0.24, run: 'jog', speed: 3.2, win: 0.15, escape: 0.13, time: 40, goal: 0.40, sky: 'morning', gap: 2.2 },
+  { name: '② 蹦蹦跳跳', sub: '白丝 · 蹦跳跑', style: 'white', thick: 1.0, hold: 0.3, run: 'skip', speed: 3.4, win: 0.3, escape: 0.16, time: 40, goal: 0.48, sky: 'noon', gap: 2.6 },
+  { name: '③ 渔网蛇行', sub: '渔网 · 蛇形走位', style: 'net', thick: 1.0, hold: 0.32, run: 'zigzag', speed: 3.8, win: 0.4, escape: 0.19, time: 40, goal: 0.52, sky: 'cloudy', gap: 2.8 },
+  { name: '④ 夕阳散步', sub: '超薄肉丝 · 喘口气', style: 'nude', thick: 0.6, hold: 0.2, run: 'stroll', speed: 2.6, win: 0.1, escape: 0.1, time: 22, goal: 0.45, sky: 'sunset', gap: 2.0 },
+  { name: '⑤ 樱粉冲刺', sub: '加厚樱粉 · 全力冲刺', style: 'pink', thick: 1.6, hold: 0.4, run: 'sprint', speed: 4.6, win: 0.5, escape: 0.24, time: 45, goal: 0.6, sky: 'dusk', gap: 3.0 },
+  { name: '⑥ 终极肥鱼', sub: '加厚黑丝 · 多动症', style: 'black', thick: 1.7, hold: 0.42, run: 'hyper', speed: 5.0, win: 0.55, escape: 0.28, time: 48, goal: 0.66, sky: 'night', gap: 3.2 },
+];
+const GRAB_RANGE = 1.12, GAP_MIN = 0.78, GAP_MAX = 4.2;
+const save = { unlocked: 1, sfx: true, shake: 1 };
+try { Object.assign(save, JSON.parse(localStorage.getItem('siwa-run') || '{}')); } catch { /* 存储不可用就用默认值 */ }
+const persist = () => { try { localStorage.setItem('siwa-run', JSON.stringify(save)); } catch { /* 忽略 */ } };
+
+// ------------------------------------------------------------ 场景
+const view = $('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: MANUAL });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.localClippingEnabled = true;
+view.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(66, 9 / 16, 0.02, 400);
+const backdrop = makeBackdrop(); scene.add(backdrop);
+const keyDirW = new THREE.Vector3(0.5, 0.75, 0.6).normalize(), fillDirW = new THREE.Vector3(-0.7, 0.15, 0.5).normalize();
+const key = new THREE.DirectionalLight(0xfff4ea, 1.7); key.position.copy(keyDirW).multiplyScalar(5); scene.add(key);
+scene.add(new THREE.HemisphereLight(0xcfe3f0, 0x8d8690, 0.9), new THREE.AmbientLight(0xffffff, 0.5));
+const shared = makeSharedUniforms();
+const world = new Boardwalk(scene, backdrop, key);
+
+function radialTexture(stops) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  for (const [o, col] of stops) gr.addColorStop(o, col);
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const blobTex = radialTexture([[0, 'rgba(20,12,10,0.6)'], [0.5, 'rgba(20,12,10,0.25)'], [1, 'rgba(20,12,10,0)']]);
+const blobs = [0, 1].map(() => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = -4; scene.add(m); return m;
+});
+function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+// 撕下来的碎片
+const SHREDS = 60;
+const shredMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.016, 0.007), new THREE.MeshBasicMaterial({ color: 0x1b1310, side: THREE.DoubleSide }), SHREDS);
+shredMesh.frustumCulled = false; scene.add(shredMesh);
+const shreds = Array.from({ length: SHREDS }, () => ({ p: new THREE.Vector3(0, -9, 0), v: new THREE.Vector3(), life: 0, rot: new THREE.Euler(), spin: new THREE.Vector3() }));
+let shredNext = 0;
+function burst(pos, n, toward) {
+  for (let k = 0; k < n; k++) {
+    const s = shreds[shredNext++ % SHREDS]; s.p.copy(pos); s.life = 0.5 + Math.random() * 0.5;
+    s.v.set((Math.random() - 0.5) * 2.2, 0.6 + Math.random() * 1.8, (Math.random() - 0.5) * 1.2).addScaledVector(toward, 1 + Math.random() * 1.5);
+    s.spin.set(Math.random() * 20 - 10, Math.random() * 20 - 10, Math.random() * 20 - 10); s.rot.set(Math.random() * 6, Math.random() * 6, 0);
+  }
+}
+const _sm = new THREE.Matrix4(), _sq = new THREE.Quaternion(), _ss = new THREE.Vector3();
+function updateShreds(dt) {
+  shreds.forEach((s, i) => {
+    if (s.life > 0) { s.life -= dt; s.v.y -= 6 * dt; s.v.multiplyScalar(Math.exp(-dt * 2.5)); s.p.addScaledVector(s.v, dt); s.rot.x += s.spin.x * dt; s.rot.y += s.spin.y * dt; s.rot.z += s.spin.z * dt; }
+    const k = s.life > 0 ? Math.min(1, s.life * 3) * 1.4 : 0;
+    _sm.compose(s.p, _sq.setFromEuler(s.rot), _ss.set(k, k, k)); shredMesh.setMatrixAt(i, _sm);
+  });
+  shredMesh.instanceMatrix.needsUpdate = true;
+}
+
+// ------------------------------------------------------------ 角色
+let vrm, girl, girlRoot, man, legs = [], skirt, legRefMesh, joints = [];
+const tailParts = []; // 尾巴和丝带垂在身后，近身视角会把腿全挡住，所以贴近时藏起来
+const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpV3 = new THREE.Vector3();
+const raw = (n) => vrm.humanoid.getRawBoneNode(n);
+
+async function load() {
+  const loader = new GLTFLoader(); loader.register((p) => new VRMLoaderPlugin(p));
+  const [gltf, m] = await Promise.all([loader.loadAsync('/models/DeepSeek-chan.vrm'), loadMan()]);
+  vrm = gltf.userData.vrm; man = m;
+  scene.add(vrm.scene, man.root);
+  vrm.scene.traverse((o) => { o.frustumCulled = false; });
+  scene.updateMatrixWorld(true);
+
+  // 原模型的长裙挡住了整条腿：隐藏，换成程序化百褶短裙
+  let oldSkirt = null;
+  vrm.scene.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (/skirt/i.test(o.name)) oldSkirt = o;
+    else if (mat.name === 'Material_lower_body' && !/^Spring/i.test(o.name)) legRefMesh = o;
+  });
+  if (!legRefMesh) throw new Error('没找到腿部网格 (Material_lower_body)');
+  if (oldSkirt) oldSkirt.visible = false;
+
+  // 腿部拟合必须在绑定姿态、模型还没挪动之前做
+  const wp = (n) => raw(n).getWorldPosition(new THREE.Vector3());
+  const toLocal = new THREE.Matrix4().copy(legRefMesh.matrixWorld).invert();
+  const J = (n) => wp(n).applyMatrix4(toLocal);
+  const cx = J('hips').x, yTop = 0.88, yBot = 0.115;
+  for (const [side, pre] of [[1, 'left'], [-1, 'right']]) {
+    const A = J(pre + 'UpperLeg'), K = J(pre + 'LowerLeg'), F = J(pre + 'Foot');
+    const fit = fitLeg(legRefMesh.geometry, side, cx, A, K, F, { NU: 128, NV: 240, yTop, yBot });
+    const leg = new StockingLeg(fit, legRefMesh, shared, (yTop - K.y) / (yTop - yBot) + 0.015, params);
+    legRefMesh.parent.add(leg.skinMesh, leg.mesh);
+    legs.push(leg);
+  }
+  const oldMat = Array.isArray(legRefMesh.material) ? legRefMesh.material[0] : legRefMesh.material;
+  legRefMesh.material = makeLegacyLegMaterial(shared, oldMat.map || oldMat.uniforms?.map?.value, yTop, yBot);
+
+  // 把髋部挪到原点，外面套一层根节点负责转身和横移
+  const hp = wp('hips');
+  girlRoot = new THREE.Group(); scene.add(girlRoot); scene.remove(vrm.scene); girlRoot.add(vrm.scene);
+  vrm.scene.position.set(-hp.x, 0, -hp.z);
+  scene.updateMatrixWorld(true);
+  skirt = new Skirt(raw('hips'), wp('hips'));
+  scene.add(skirt.mesh);
+  girl = new Girl(vrm, girlRoot); girl.say = say;
+  vrm.scene.traverse((o) => { if (/whale_tail|ribbon_(left|right)_tail/i.test(o.name)) tailParts.push(o); });
+  joints = [...(vrm.springBoneManager?.joints || [])].map((j) => ({ j, g: j.settings.gravityPower, d: j.settings.gravityDir.clone() }));
+  girl.update(0);
+  for (let i = 0; i < 40; i++) { vrm.update(1 / 60); scene.updateMatrixWorld(true); updateSkirt(1 / 60, 0); }
+  $('loading').remove();
+}
+
+const cap = () => ({ a: new THREE.Vector3(), b: new THREE.Vector3(), ra: 0, rb: 0 });
+const colliders = [cap(), cap(), cap()];
+const calf = [new THREE.Vector3(), new THREE.Vector3()];
+function updateSkirt(dt, wind) {
+  ['left', 'right'].forEach((pre, i) => {
+    raw(pre + 'UpperLeg').getWorldPosition(colliders[i].a); raw(pre + 'LowerLeg').getWorldPosition(colliders[i].b);
+    colliders[i].ra = 0.094; colliders[i].rb = 0.07;
+    raw(pre + 'Foot').getWorldPosition(tmpV); blobs[i].position.set(tmpV.x, 0.004, tmpV.z);
+    blobs[i].material.opacity = clamp(1.2 - tmpV.y * 3, 0.15, 1);
+    calf[i].copy(colliders[i].b).lerp(tmpV, 0.42);
+  });
+  raw('hips').getWorldPosition(tmpV);
+  const back = girlRoot ? Math.cos(girlRoot.rotation.y) : 1; // 臀部碰撞体放在身后
+  colliders[2].a.set(tmpV.x, tmpV.y - 0.02, tmpV.z - 0.035 * back); colliders[2].b.set(tmpV.x, tmpV.y - 0.08, tmpV.z - 0.03 * back); colliders[2].ra = colliders[2].rb = 0.135;
+  skirt.update(dt, colliders, wind);
+}
+/** 跑起来以后头发、尾巴、丝带被风往后带 */
+function setWind(run) {
+  for (const { j, g, d } of joints) { j.settings.gravityPower = g + 0.5 * run; j.settings.gravityDir.copy(d).lerp(tmpV.set(0, -0.25, 1).normalize(), 0.75 * run).normalize(); }
+}
+
+// ------------------------------------------------------------ 输入
+const input = { sprint: false, hand: [false, false] };
+const KEYS = { Space: 'sprint', ShiftLeft: 'sprint', ShiftRight: 'sprint', KeyW: 'sprint', ArrowUp: 'sprint', KeyA: 0, ArrowLeft: 0, KeyJ: 0, KeyD: 1, ArrowRight: 1, KeyL: 1 };
+function setInput(k, on) {
+  if (game.bot) return;
+  if (k === 'sprint') input.sprint = on; else { if (on && !input.hand[k]) pressHand(k); input.hand[k] = on; }
+}
+addEventListener('keydown', (e) => { if (e.code in KEYS) { e.preventDefault(); if (!e.repeat) setInput(KEYS[e.code], true); } else if (e.code === 'Escape') game.pause(); });
+addEventListener('keyup', (e) => { if (e.code in KEYS) setInput(KEYS[e.code], false); });
+for (const [id, k] of [['bL', 0], ['bR', 1], ['bSprint', 'sprint']]) {
+  const el = $(id);
+  el.addEventListener('pointerdown', (e) => { e.preventDefault(); el.setPointerCapture(e.pointerId); setInput(k, true); });
+  for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => setInput(k, false));
+}
+addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ------------------------------------------------------------ 界面小部件（全部按游戏时间驱动，方便逐帧录像）
+const ui = { popT: 9, bubbleT: 9, bigT: 9, bigDur: 1, tipT: 9, flash: 0 };
+function say(text) { $('bubble').textContent = text; ui.bubbleT = 0; }
+function pop(text) { $('pop').textContent = text; ui.popT = 0; }
+function big(title, sub = '', dur = 1.2) { const b = $('big'); b.firstElementChild.textContent = title; b.lastElementChild.textContent = sub; b.lastElementChild.style.display = sub ? '' : 'none'; ui.bigT = 0; ui.bigDur = dur; }
+function tip(text) { $('tip').textContent = text; ui.tipT = 0; }
+function updateUI(dt) {
+  ui.popT += dt; ui.bubbleT += dt; ui.bigT += dt; ui.tipT += dt; ui.flash = Math.max(0, ui.flash - dt * 5);
+  const p = $('pop'), a = ui.popT / 0.7;
+  p.style.opacity = a < 1 ? Math.min(1, a * 5) * (1 - smooth((a - 0.6) / 0.4)) : 0;
+  p.style.transform = `translate(-50%, ${-50 - a * 60}%) scale(${a < 0.2 ? 0.6 + a * 3 : 1.2 - (a - 0.2) * 0.25})`;
+  const b = $('bubble'), ba = ui.bubbleT / 1.2;
+  b.style.opacity = ba < 1 ? Math.min(1, ba * 8) * (1 - smooth((ba - 0.8) / 0.2)) : 0;
+  if (ba < 1 && vrm) {
+    raw('head').getWorldPosition(tmpV); tmpV.y += 0.2; tmpV.project(camera);
+    const w = view.clientWidth, h = view.clientHeight;
+    b.style.left = clamp((tmpV.x * 0.5 + 0.5) * w + 70, 80, w - 80) + 'px'; b.style.top = clamp((-tmpV.y * 0.5 + 0.5) * h, 130, h * 0.5) + 'px';
+  }
+  const g = $('big'), ga = ui.bigT / ui.bigDur;
+  g.style.opacity = ga < 1 ? Math.min(1, ga * 8) * (1 - smooth((ga - 0.75) / 0.25)) : 0;
+  g.style.transform = `scale(${ga < 0.12 ? 1.6 - ga * 5 : 1 + ga * 0.06})`;
+  $('tip').style.opacity = ui.tipT < 2.4 ? Math.min(1, ui.tipT * 5) * (1 - smooth((ui.tipT - 2) / 0.4)) * (0.75 + 0.25 * Math.sin(ui.tipT * 9)) : 0;
+  $('flash').style.opacity = ui.flash * 0.5;
+}
+
+// ------------------------------------------------------------ 双手
+// state: idle（跟着腿 / 摆臂）| grab（拽住）| miss（抓空）| recoil（撕完往回扯）
+const hands = [0, 1].map((i) => ({ i, state: 'idle', t: 0, tension: 0, pos: new THREE.Vector3(), from: new THREE.Vector3(), pinch: 0, snap: 16 }));
+
+function pressHand(h) {
+  if (game.state !== 'play') return;
+  const H = hands[h], lv = game.lv;
+  if (H.state !== 'idle') return;
+  const near = game.view > 0.55, open = girl.kick(h) > lv.win - 0.12;
+  if (near && open) {
+    const spot = legs[h].pickSpot();
+    if (spot && legs[h].grab(spot.i, spot.j)) { H.state = 'grab'; H.t = 0; H.tension = 0; sfx.tone(300 + h * 60, 0.05, 'triangle', 0.08); return; }
+  }
+  H.state = 'miss'; H.t = 0; H.from.copy(calf[h]); game.combo = 0; sfx.tone(180, 0.08, 'sine', 0.07);
+  if (near) { girl.react('miss'); pop('抓空！'); } else tip(game.gap > GRAB_RANGE ? '太远了，先按住冲刺追上去' : '松开冲刺再伸手');
+}
+function doTear(h) {
+  const H = hands[h], leg = legs[h], g = leg.grabbed;
+  const chain = leg.damagedNear(g.ci, g.cj);
+  game.combo = game.lastHand !== h && game.clock - game.lastTear < 1.4 ? game.combo + 1 : 1; game.lastHand = h; game.lastTear = game.clock;
+  const energy = (1.05 + Math.random() * 0.4) * (chain ? 1.25 : 1) * (1 + Math.min(6, game.combo - 1) * 0.07);
+  leg.restToWorld(g.c, g.target, H.from);
+  leg.tearAt(g.ci, g.cj, energy); leg.release();
+  H.state = 'recoil'; H.t = 0;
+  shredMesh.material.color.copy(shared.uFabricColor.value);
+  burst(H.from, 7 + Math.floor(energy * 4), tmpV.subVectors(camera.position, H.from).normalize());
+  sfx.rip(Math.min(1.4, energy)); game.shake = 0.03; game.slow = 0.09; ui.flash = 0.5;
+  game.tears++;
+  girl.react('tear');
+  pop(game.combo >= 3 ? `左右开弓 ×${game.combo}！` : chain ? '顺着撕！' : '嘶啦！');
+}
+function dropHand(h, snapSound) {
+  const H = hands[h]; if (H.state === 'grab') { legs[h].release(); if (snapSound) sfx.snap(); }
+  H.state = 'idle'; H.t = 0; H.tension = 0;
+}
+
+const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _toCam = new THREE.Vector3();
+function updateHands(dt, time) {
+  const fwd = camera.getWorldDirection(_fwd), right = _right.crossVectors(fwd, camera.up).normalize();
+  const up = camera.up, lv = game.lv, playing = game.state === 'play';
+  for (const H of hands) {
+    const h = H.i, sgn = h ? 1 : -1, leg = legs[h];
+    H.t += dt;
+    if (H.state === 'grab') {
+      const g = leg.grabbed;
+      if (!g || !playing || game.gap > GRAB_RANGE + 0.3) { dropHand(h, true); }
+      else if (!input.hand[h] && H.tension < 1) { dropHand(h, true); pop('没撕动…'); }
+      else {
+        H.tension += dt / (lv.hold * (1 - Math.min(0.3, (game.combo - 1) * 0.05)));
+        const c3 = g.c * 3, d = Math.min(1.05, H.tension) * params.tearDist * 1.08, n0 = leg.n0;
+        leg.drag(tmpV.set(g.origin.x + n0[c3] * d, g.origin.y + n0[c3 + 1] * d + d * 0.25, g.origin.z + n0[c3 + 2] * d));
+        leg.restToWorld(g.c, g.target, H.pos); H.pinch = 1; H.snap = 40;
+        if (H.tension >= 1) doTear(h);
+        continue;
+      }
+    }
+    if (H.state === 'recoil') {
+      const k = H.t / 0.2; if (k >= 1) { H.state = 'idle'; H.t = 0; }
+      H.pos.copy(H.from).addScaledVector(fwd, -0.22 * smooth(k)).addScaledVector(up, 0.06 * k).addScaledVector(right, sgn * 0.08 * k); H.pinch = 1 - k * 0.5; H.snap = 30; continue;
+    }
+    if (H.state === 'miss') {
+      const k = H.t / 0.26; if (k >= 1) { H.state = 'idle'; H.t = 0; }
+      H.pos.copy(H.from).addScaledVector(fwd, 0.1 * Math.sin(k * Math.PI)); H.pos.y += 0.04; H.pinch = Math.sin(k * Math.PI); H.snap = 30; continue;
+    }
+    // idle：近身时追着自己那条腿的小腿，手指不停地抓；跑动时摆臂，快追上了就往前够
+    const ph = game.pPhase + (h ? 0 : Math.PI), swing = Math.sin(ph), s = game.sprintK;
+    tmpV.copy(camera.position).addScaledVector(right, sgn * (0.2 + 0.03 * s)).addScaledVector(up, -0.36 + 0.07 * swing).addScaledVector(fwd, 0.34 + (0.11 + 0.05 * s) * swing);
+    let pinch = 0.55 + 0.2 * swing;
+    const reach = playing ? smooth((2.1 - game.gap) / 0.9) * (1 - game.view) : 0; // 快追上了：两只手往前伸、抓空气
+    if (reach > 0) {
+      tmpV2.copy(camera.position).addScaledVector(right, sgn * 0.17).addScaledVector(up, -0.24 + 0.05 * Math.sin(time * 13 + h * 2)).addScaledVector(fwd, 0.5 + 0.07 * Math.sin(time * 9 + h * 3));
+      tmpV.lerp(tmpV2, reach * (0.55 + 0.25 * swing)); pinch = lerp(pinch, 0.5 + 0.5 * Math.sin(time * 15 + h * 2.4), reach);
+    }
+    if (game.view > 0.02 && playing) {
+      tmpV2.copy(calf[h]); tmpV2.addScaledVector(_toCam.subVectors(camera.position, tmpV2).normalize(), 0.085);
+      tmpV2.x += Math.sin(time * 12 + h * 2) * 0.018; tmpV2.y += Math.sin(time * 16 + h) * 0.014 + (girl.kick(h) < lv.win ? 0.05 : 0);
+      tmpV.lerp(tmpV2, smooth(game.view)); pinch = lerp(pinch, 0.3 + 0.3 * Math.sin(time * 17 + h * 2.6), game.view);
+    }
+    if (game.state === 'intro' && game.t < 1.9) { tmpV.copy(camera.position).addScaledVector(right, sgn * 0.3).addScaledVector(fwd, 0.25); tmpV.y -= 0.6; }
+    H.pos.copy(tmpV); H.pinch = pinch; H.snap = 14 + 14 * game.view;
+  }
+  man.update(dt, camera, hands[0], hands[1], time);
+}
+
+// ------------------------------------------------------------ 相机：冲刺时高机位看全身，近身时压低看腿；全程带奔跑晃动
+const camState = { fov: 66, look: new THREE.Vector3(0, 0.9, 0), pos: new THREE.Vector3(0, 1.5, 3), n: 0 };
+function gameplayCam(outPos, outLook, time) {
+  const m = smooth(game.view), s = game.sprintK, gx = girlRoot.position.x, sh = save.shake;
+  const step = Math.sin(game.pPhase), amp = lerp(0.022, 0.011, m) + 0.02 * s;
+  const noise = Math.sin(time * 7.3) * 0.5 + Math.sin(time * 12.7 + 1) * 0.3 + Math.sin(time * 19.1 + 2) * 0.2;
+  outPos.set(gx * lerp(0.5, 0.85, m) + step * (0.022 + 0.014 * s) * sh + noise * 0.006 * sh,
+    lerp(1.5, 0.82, m) + 0.05 * s + Math.abs(Math.cos(game.pPhase)) * amp * 2 * sh,
+    game.gap - 0.3 * m);
+  outLook.set(gx * 0.9 + noise * 0.012 * sh, lerp(0.9, 0.42, m) + Math.sin(game.pPhase * 2 + 0.6) * 0.012 * sh, -0.05);
+  return { fov: 66 + 9 * s - 3 * m, roll: (step * (0.012 + 0.014 * s) + noise * 0.005) * sh };
+}
+const _gp = new THREE.Vector3(), _gl = new THREE.Vector3(), _ip = new THREE.Vector3(), _il = new THREE.Vector3();
+function updateCamera(dt, time) {
+  const g = gameplayCam(_gp, _gl, time);
+  let pos = _gp, look = _gl, fov = g.fov, roll = g.roll;
+  if (game.state === 'intro') { // 入场：从脚边贴着丝袜摇上去 → 她转身开跑 → 镜头甩到追逐位
+    const t = game.t, a = smooth(t / 1.7), b = smooth((t - 1.75) / 1.0);
+    _ip.set(lerp(0.34, -0.12, a), lerp(0.3, 1.22, a), lerp(1.0, 1.55, a)); _il.set(0, lerp(0.35, 1.05, a), 0);
+    pos = _ip.lerp(_gp, b); look = _il.lerp(_gl, b); fov = lerp(52, g.fov, b); roll = lerp(Math.sin(t * 2.2) * 0.02, g.roll, b);
+  }
+  const k = 1 - Math.exp(-dt * 14);
+  camState.pos.lerp(pos, camState.n ? k : 1); camState.look.lerp(look, camState.n ? k : 1); camState.fov += (fov - camState.fov) * (camState.n ? k : 1); camState.n++;
+  camera.position.copy(camState.pos);
+  camera.position.x += (Math.random() - 0.5) * game.shake * save.shake; camera.position.y += (Math.random() - 0.5) * game.shake * save.shake;
+  camera.up.set(0, 1, 0); camera.lookAt(camState.look); camera.rotateZ(roll);
+  camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+  if (Math.abs(camera.fov - camState.fov) > 0.05) { camera.fov = camState.fov; camera.updateProjectionMatrix(); }
+  camera.updateMatrixWorld();
+  game.shake *= Math.exp(-dt * 10);
+}
+
+// ------------------------------------------------------------ 游戏状态
+const game = {
+  state: 'load', level: 0, lv: LEVELS[0], t: 0, clock: 0, time: 0, broken: 0, gap: 2.4, stamina: 1, sprintK: 0, sprinting: false, winded: false, view: 0, pPhase: 0, dist: 0,
+  combo: 0, lastHand: -1, lastTear: -9, tears: 0, shake: 0, slow: 0, bot: query.has('bot'), tipDone: {}, paused: false, tick: 0, resT: 0,
+
+  startLevel(i, fullIntro = false) {
+    this.level = clamp(i, 0, LEVELS.length - 1); const lv = this.lv = LEVELS[this.level], st = STYLE[lv.style];
+    shared.uFabricColor.value.set(st.color); shared.uSheenColor.value.set(st.sheen); shared.uDensity.value = st.dens * lv.thick; shared.uNet.value = st.net ? 1 : 0;
+    world.setPalette(lv.sky, shared); sfx.sound.on = save.sfx;
+    legs.forEach((l) => l.reset()); hands.forEach((H) => { H.state = 'idle'; H.tension = 0; });
+    girl.setStyle(lv.run); girl.setRunning(false); girl.c.yaw.x = girl.c.yaw.t = 0; girl.c.run.x = 0; girl.c.x.x = 0; girl.c.wave.t = 1;
+    girl.faceT.angry = 0; girl.faceT.happy = 0.4;
+    this.time = lv.time; this.broken = 0; this.gap = 1.6; this.stamina = 1; this.combo = 0; this.lastHand = -1; this.lastTear = -9; this.tears = 0; this.view = 0; this.sprintK = 0; this.winded = false;
+    input.sprint = false; input.hand = [false, false];
+    this.state = 'intro'; this.t = fullIntro ? 0 : 1.0; this.paused = false; camState.n = 0;
+    for (const id of ['result', 'menu']) $(id).classList.add('hidden');
+    for (const id of ['hud', 'pad', 'stam']) $(id).classList.remove('hidden');
+    $('lvname').textContent = `${lv.name}　${lv.sub}`; $('prog').querySelector('.goal').style.left = lv.goal * 100 + '%';
+    if (fullIntro) big('撕袜大作战', '肥鱼快跑', 1.7); else big(lv.name, lv.sub, 1.0);
+    girl.later(0.35, () => say('来抓我呀～'));
+    this.hud();
+  },
+  hud() {
+    $('time').textContent = Math.max(0, this.time).toFixed(1); $('time').classList.toggle('low', this.time < 10);
+    $('prog').querySelector('.fill').style.width = Math.min(100, this.broken * 100) + '%';
+    $('prog').querySelector('.txt').textContent = `破碎 ${(this.broken * 100).toFixed(0)}% / 目标 ${Math.round(this.lv.goal * 100)}%`;
+    $('gap').textContent = this.gap <= GRAB_RANGE ? '够得着！松开冲刺，伸手！' : `距离 ${this.gap.toFixed(1)} m`;
+    $('combo').textContent = this.combo >= 2 ? `连撕 ×${this.combo}` : '';
+    $('stam').firstElementChild.style.width = this.stamina * 100 + '%'; $('stam').classList.toggle('low', this.stamina < 0.2);
+    $('fx-lines').style.opacity = this.sprintK * 0.9;
+    const near = this.view > 0.55 && this.state === 'play';
+    [$('bL'), $('bR')].forEach((el, h) => { el.classList.toggle('hot', near && hands[h].state === 'idle' && girl.kick(h) > this.lv.win); el.classList.toggle('down', input.hand[h]); });
+    $('bSprint').classList.toggle('down', this.sprinting);
+  },
+  end(won) {
+    this.state = won ? 'win' : 'lose'; hands.forEach((H) => dropHand(H.i, false)); input.sprint = false; this.resT = 0;
+    const last = this.level === LEVELS.length - 1, stars = !won ? 0 : this.time / this.lv.time > 0.4 ? 3 : this.time / this.lv.time > 0.15 ? 2 : 1;
+    if (won && save.unlocked < this.level + 2) { save.unlocked = Math.min(LEVELS.length, this.level + 2); persist(); }
+    $('resTitle').textContent = won ? (last ? '全部通关！' : '撕完收工！') : '让她跑了…';
+    $('resStars').innerHTML = '★★★'.split('').map((s, i) => (i < stars ? s : `<i>${s}</i>`)).join('');
+    $('resText').textContent = won ? `破碎 ${(this.broken * 100).toFixed(0)}%，还剩 ${this.time.toFixed(1)} 秒，一共撕了 ${this.tears} 下。` : `只撕到 ${(this.broken * 100).toFixed(0)}%，目标是 ${Math.round(this.lv.goal * 100)}%。`;
+    $('resNext').textContent = won ? (last ? '从头再来' : '下 一 关') : '再 追 一 次';
+    $('resNext').onclick = () => this.startLevel(won ? (last ? 0 : this.level + 1) : this.level);
+    if (won) { sfx.win(); big('撕完收工！', '', 1.3); girl.faceT.angry = 0.6; say('赔我十双！'); } else { sfx.lose(); girl.react('taunt'); }
+  },
+  pause() {
+    if (this.state === 'load') return;
+    this.paused = !this.paused; $('menu').classList.toggle('hidden', !this.paused);
+    if (this.paused) buildMenu();
+  },
+
+  update(dt) {
+    this.clock += dt; this.t += dt; this.tick++;
+    const lv = this.lv;
+    if (this.state === 'intro') {
+      if (this.t > 1.7 && !girl.running) { girl.setRunning(true); girl.c.wave.t = 0; big('追！', '', 0.8); sfx.tick(); }
+      if (this.t > 1.7) this.gap = lerp(1.6, lv.gap, smooth((this.t - 1.7) / 1.2));
+      if (this.t > 3.0) { this.state = 'play'; if (!this.tipDone.sprint) { this.tipDone.sprint = 1; tip('按住【冲刺】追上去！'); } }
+    }
+    const run = clamp(girl.c.run.x, 0, 1);
+    if (this.state === 'win' || this.state === 'lose') { // 结算：镜头留在身后
+      this.resT += dt; this.gap += (2.4 - this.gap) * (1 - Math.exp(-dt * 2));
+      if (this.resT > 1.3) $('result').classList.remove('hidden');
+      if (this.bot && this.resT > 3.2 && this.state === 'win' && this.level < LEVELS.length - 1) this.startLevel(this.level + 1);
+    }
+    if (this.state === 'play') {
+      if (this.bot) botPlay(dt);
+      // 冲刺：耗体力、快速拉近；体力见底要缓一下
+      if (this.stamina <= 0) this.winded = true;
+      if (this.stamina > 0.25) this.winded = false;
+      this.sprinting = input.sprint && !this.winded && this.gap > GAP_MIN + 0.01;
+      const holding = hands.some((H) => H.state === 'grab');
+      let rate;
+      if (this.sprinting) { rate = -1.55; this.stamina -= dt * 0.42; }
+      else { rate = this.gap > GRAB_RANGE ? 0.34 : lv.escape * (holding ? 0.7 : 1); this.stamina += dt * (this.gap <= GRAB_RANGE ? 0.32 : 0.24); }
+      this.stamina = clamp(this.stamina, 0, 1);
+      this.gap = clamp(this.gap + rate * dt, GAP_MIN, GAP_MAX);
+      if (this.gap <= GRAB_RANGE && !this.tipDone.grab) { this.tipDone.grab = 1; tip('松开冲刺！看她哪条腿后甩，就按哪只手'); }
+      if (this.tick % 6 === 0) this.broken = (legs[0].zoneRatio() + legs[1].zoneRatio()) / 2;
+      this.time -= dt;
+      if (this.broken >= lv.goal) this.end(true); else if (this.time <= 0) this.end(false);
+    } else this.sprinting = false;
+    this.sprintK += ((this.sprinting ? 1 : 0) - this.sprintK) * (1 - Math.exp(-dt * 7));
+    const near = this.state === 'play' && !this.sprinting && this.gap <= GRAB_RANGE + 0.12;
+    this.view += ((near ? 1 : 0) - this.view) * (1 - Math.exp(-dt * (near ? 9 : 6)));
+    this.pPhase += dt * Math.PI * lerp(2.7, 3.6, this.sprintK) * (this.state === 'intro' ? run : 1);
+    this.dist += dt * lv.speed * run * (1 + 0.25 * this.sprintK);
+    for (let h = 0; h < 2; h++) { const u = legs[h].material.uniforms.uHot, on = near && hands[h].state === 'idle' && girl.kick(h) > lv.win; u.value += ((on ? 1 : 0) - u.value) * (1 - Math.exp(-dt * 18)); }
+    const hideTail = this.view > 0.3; for (const o of tailParts) o.visible = !hideTail;
+    this.hud();
+  },
+};
+
+/** 自动游玩（录像 / 演示用）：远了就冲刺，够得着就左右开弓 */
+const bot = { wait: [0, 0] };
+function botPlay(dt) {
+  if (game.gap > GRAB_RANGE * 0.98 && game.stamina > 0.3) input.sprint = true;
+  if (game.gap < 0.86 || game.stamina < 0.03) input.sprint = false;
+  for (let h = 0; h < 2; h++) {
+    const H = hands[h]; bot.wait[h] -= dt;
+    if (H.state === 'grab') { input.hand[h] = true; continue; }
+    input.hand[h] = false;
+    if (H.state === 'idle' && game.view > 0.75 && bot.wait[h] <= 0 && girl.kick(h) > game.lv.win + 0.08) { input.hand[h] = true; pressHand(h); bot.wait[h] = 0.35 + Math.random() * 0.55; }
+  }
+}
+
+function buildMenu() {
+  const box = $('levels'); box.innerHTML = '';
+  LEVELS.forEach((lv, i) => {
+    const b = document.createElement('button'), open = i < save.unlocked;
+    b.className = 'lv' + (open ? '' : ' lock') + (i === game.level ? ' cur' : '');
+    b.innerHTML = `<b>${lv.name}</b><small>${open ? `${lv.sub} · ${lv.time}s / ${Math.round(lv.goal * 100)}%` : '未解锁'}</small>`;
+    if (open) b.onclick = () => game.startLevel(i);
+    box.appendChild(b);
+  });
+  $('optSfx').textContent = '音效：' + (save.sfx ? '开' : '关'); $('optShake').textContent = '镜头晃动：' + ['关', '正常', '猛'][save.shake];
+}
+$('optSfx').onclick = () => { save.sfx = !save.sfx; sfx.sound.on = save.sfx; persist(); buildMenu(); };
+$('optShake').onclick = () => { save.shake = (save.shake + 1) % 3; persist(); buildMenu(); };
+$('resume').onclick = () => game.pause(); $('gear').onclick = () => game.pause();
+$('resRetry').onclick = () => game.startLevel(game.level); $('resMenu').onclick = () => { $('result').classList.add('hidden'); game.pause(); };
+
+// ------------------------------------------------------------ 主循环
+let time = 0, frameNo = 0;
+function frame(rawDt, draw = true) {
+  frameNo++;
+  if (vrm && !game.paused) {
+    game.slow = Math.max(0, game.slow - rawDt);
+    const dt = rawDt * (game.slow > 0 ? 0.3 : 1); // 撕破瞬间的顿帧
+    time += dt; shared.uTime.value = time;
+    game.update(dt);
+    const run = clamp(girl.c.run.x, 0, 1);
+    setWind(run);
+    girl.update(dt);
+    vrm.update(dt);
+    scene.updateMatrixWorld(true);
+    legRefMesh.skeleton.update();
+    updateSkirt(dt, 9 * run);
+    updateCamera(dt, time);
+    updateHands(dt, time);
+    for (const leg of legs) leg.update(dt);
+    world.update(game.dist);
+    updateShreds(dt); updateUI(dt);
+  }
+  shared.uKeyDir.value.copy(keyDirW).transformDirection(camera.matrixWorldInverse);
+  shared.uFillDir.value.copy(fillDirW).transformDirection(camera.matrixWorldInverse);
+  shared.uUpV.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
+  if (draw) renderer.render(scene, camera);
+}
+
+let last = performance.now();
+load().then(() => {
+  window.app = {
+    legs, params, shared, game, save, camera, hands, input, LEVELS, get girl() { return girl; }, get man() { return man; },
+    step: (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) frame(dt, i === n - 1); }, ready: true,
+  };
+  game.startLevel(query.has('level') ? +query.get('level') - 1 : 0, true); // 一进来就播入场动画，直接开玩
+  if (!MANUAL) renderer.setAnimationLoop(() => { const now = performance.now(), dt = Math.min((now - last) / 1000, 1 / 30); last = now; frame(dt); });
+  else frame(1 / 60);
+}).catch((err) => { console.error(err); const l = $('loading'); if (l) l.textContent = '加载失败：' + err.message; window.app = { error: String(err.stack || err) }; });
