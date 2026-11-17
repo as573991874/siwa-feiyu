@@ -255,7 +255,8 @@ function dropHand(h, snapSound) {
   H.state = 'idle'; H.t = 0; H.tension = 0;
 }
 
-const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _toCam = new THREE.Vector3();
+const _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2(), _floorP = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.03);
+const _flat = new THREE.Vector3(), _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _toCam = new THREE.Vector3();
 function updateHands(dt, time) {
   const fwd = camera.getWorldDirection(_fwd), right = _right.crossVectors(fwd, camera.up).normalize();
   const up = camera.up, lv = game.lv, playing = game.state === 'play';
@@ -265,7 +266,12 @@ function updateHands(dt, time) {
       const leg = legs[0], g = leg.grabbed, cell = (a, out) => { const a3 = a * 3; return leg.restToWorld(a, tmpV3.set(leg.p0[a3], leg.p0[a3 + 1], leg.p0[a3 + 2]), out); };
       if (g) { leg.restToWorld(g.c, g.want, R.pos); R.snap = 40; R.pinch = 1; }
       else { cell(d.cell, R.pos); R.pos.y += 0.1 * (1 - smooth(d.t / 0.9)); R.snap = 10; R.pinch = 0.4; }
-      cell(d.ankle, L.pos); L.pos.y += 0.02; L.pinch = 0.85; L.snap = g ? 30 : 8;
+      // 左手放下去撑在左前方的地板上，手掌摊开，不挡画面
+      // 左手握住她伸过来的那只鞋，往自己这边拽，和右手一起往外拉
+      // 从脚踝后侧、鞋口上方握住：握点沿「脚踝→镜头」方向退到鞋面外 5.5 厘米，拳头包在外面而不是插进鞋里
+      raw('leftFoot').getWorldPosition(L.pos); L.pos.y += 0.03;
+      L.pos.addScaledVector(tmpV3.subVectors(camera.position, L.pos).normalize(), 0.055);
+      L.pinch = 0.75; L.snap = 14;
     } else if (game.state === 'lose') { // 力竭趴地：两只手摊在地板上
       R.pos.set(camera.position.x + 0.1, 0.1 + Math.sin(time * 1.3) * 0.012, camera.position.z - 0.62); L.pos.set(camera.position.x - 0.26, 0.05, camera.position.z - 0.42); // 右手还不死心地朝她的鞋尖够
       R.pinch = L.pinch = 0.12; R.snap = L.snap = 5;
@@ -274,6 +280,7 @@ function updateHands(dt, time) {
       // 撕开时右手往右下方甩开，不挡镜头
       if (game.state === 'duel' && d.phase === 'rip') { { const k = smooth(d.t / 0.5); R.pos.copy(d.from).addScaledVector(fwd, -0.12 * k).addScaledVector(right, 0.18 * k).addScaledVector(up, 0.06 * k); } R.pinch = 1; R.snap = 20; }
     }
+    man.maxLean = game.state === 'duel' ? 0.42 : 0.34; man.clipBody = game.state === 'duel';
     man.update(dt, camera, hands[0], hands[1], time); followHands();
     return;
   }
@@ -320,6 +327,7 @@ function updateHands(dt, time) {
     if (game.state === 'intro' && game.t < 1.9) { tmpV.copy(camera.position).addScaledVector(right, sgn * 0.3).addScaledVector(fwd, 0.25); tmpV.y -= 0.6; }
     H.pos.copy(tmpV); H.pinch = pinch; H.snap = 14 + 14 * game.view;
   }
+  man.maxLean = 0.34; man.clipBody = false;
   man.update(dt, camera, hands[0], hands[1], time); followHands();
 }
 /** 丝袜被拉起的尖端直接跟着糙汉拳头里攥住布的那一点走——手在哪，布就在哪 */
@@ -355,7 +363,7 @@ function updateCamera(dt, time) {
   if (game.state === 'duel') { // 拼力气：越绷越贴近小腿；撕开的一瞬间怼上去；认输时拉远
     const d = game.duel, T = smooth((d.T - 0.45) / 0.5); rate = 7;
     if (d.phase === 'in') { _ip.set(gx + 0.55, 1.0, 1.55); _il.set(gx + 0.05, 0.35, 0.05); fov = 62; rate = 4; }
-    else if (d.phase === 'tug') { _ip.set(gx + lerp(0.72, 0.62, T) + br * 0.008, lerp(0.8, 0.68, T), lerp(1.1, 1.0, T)); _il.set(gx + 0.06, lerp(0.2, 0.16, T), lerp(0.08, 0.14, T)); fov = lerp(60, 52, T); }
+    else if (d.phase === 'tug') { _ip.set(gx + lerp(0.7, 0.62, T) + br * 0.008, lerp(0.6, 0.54, T), lerp(1.08, 1.0, T)); _il.set(gx + 0.08, 0.16, 0.16); fov = lerp(62, 56, T); } // 镜头放低（半跪着），左手撑地不用探太远
     else if (d.phase === 'rip') { _ip.set(gx + 0.62, 0.66, 0.98); _il.set(gx + 0.06, 0.15, 0.14); fov = 50; rate = 10; }
     else if (d.phase === 'sit') { _ip.set(gx + 0.42, 0.95, 1.6); _il.set(gx, 0.28, -0.05); fov = 56; rate = 4; }
     else { _ip.copy(_gp); _il.copy(_gl); rate = 5; }

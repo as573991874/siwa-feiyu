@@ -127,6 +127,8 @@ export class Man {
     this.root = fbx;
     fbx.scale.setScalar(SCALE); fbx.rotation.y = Math.PI; // 面朝 -Z（朝向肥鱼）
     this.floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this.bodyClip = new THREE.Plane(new THREE.Vector3(0, 1, 0), 1000); // 默认不裁；需要时把肩膀以后的躯干裁掉，只留胳膊
+    this.clipBody = false;
 
     fbx.traverse((o) => {
       if (!o.isSkinnedMesh) return;
@@ -134,7 +136,7 @@ export class Man {
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       o.material = mats.map((m) => {
         if (!/body/i.test(m.name)) { const hid = new THREE.MeshBasicMaterial(); hid.visible = false; return hid; }
-        return new THREE.MeshStandardMaterial({ map, normalMap: nrm, roughness: 0.62, metalness: 0, clippingPlanes: [this.floor] });
+        return new THREE.MeshStandardMaterial({ map, normalMap: nrm, roughness: 0.62, metalness: 0, clippingPlanes: [this.floor, this.bodyClip] });
       });
       if (!Array.isArray(o.material) || mats.length === 1) o.material = o.material[0];
     });
@@ -160,6 +162,8 @@ export class Man {
     const eye = V().copy(camera.position).addScaledVector(flat, -0.2).addScaledVector(V().set(0, 1, 0), -0.1); // 身体整体靠后，低头时才看得到胸口
     this.root.position.copy(eye).sub(this.headOff).add(this.leanOff);
     this.root.updateMatrixWorld(true);
+    if (this.clipBody) this.bodyClip.setFromNormalAndCoplanarPoint(flat, V().copy(camera.position).addScaledVector(flat, 0.06)); // 镜头前 6 厘米以内的躯干一律裁掉
+    else this.bodyClip.set(V().set(0, 1, 0), 1000);
     let worst = -1, pull = V();
     for (const [arm, tg, sgn] of [[this.right, R, 1], [this.left, L, -1]]) {
       const k = this.first ? 1 : 1 - Math.exp(-dt * (tg.snap || 16));
@@ -177,6 +181,6 @@ export class Man {
     this.first = false;
     // 够不着就探身
     const want = pull.multiplyScalar(Math.min(0.3, Math.max(0, worst + 0.03)));
-    this.leanOff.lerp(want.add(this.leanOff), 1 - Math.exp(-dt * 10)).multiplyScalar(worst < -0.05 ? 0.92 : 1).clampLength(0, 0.34); // 探太多上衣会怼到镜头前
+    this.leanOff.lerp(want.add(this.leanOff), 1 - Math.exp(-dt * 10)).multiplyScalar(worst < -0.05 ? 0.92 : 1).clampLength(0, this.maxLean ?? 0.34); // 探太多上衣会怼到镜头前
   }
 }
