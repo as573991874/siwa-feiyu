@@ -38,7 +38,7 @@ class Arm {
     this.side = side; this.sgn = side === 'R' ? 1 : -1;
     this.upper = b('UpperArm'); this.fore = b('Forearm'); this.hand = b('Hand'); this.clav = b('Clavicle');
     this.fingers = [0, 1, 2, 3, 4].map((f) => [b(`Finger${f}`), b(`Finger${f}1`), b(`Finger${f}2`)]);
-    this.curl = 0; this.target = V(); this.ready = false;
+    this.curl = 0; this.target = V(); this.ready = false; this.corr = V(); this.aim = V();
   }
   /** 在绑定姿态下分析手的朝向和每节指骨的弯曲轴（世界矩阵必须是最新的） */
   analyse() {
@@ -165,8 +165,12 @@ export class Man {
       const sh = arm.upper.getWorldPosition(V());
       const dir = V().subVectors(arm.target, sh).normalize().lerp(fwd, 0.35).normalize();
       // 掌心朝内下方，肘部朝外下方
-      const over = arm.solve(arm.target, dir, V().copy(right).multiplyScalar(-0.55 * sgn).addScaledVector(up, -0.8), V().copy(right).multiplyScalar(0.7 * sgn).addScaledVector(up, -0.7), arm.curl);
+      arm.aim.copy(arm.target).add(arm.corr);
+      const over = arm.solve(arm.aim, dir, V().copy(right).multiplyScalar(-0.55 * sgn).addScaledVector(up, -0.8), V().copy(right).multiplyScalar(0.7 * sgn).addScaledVector(up, -0.7), arm.curl);
       if (over > worst) { worst = over; pull.subVectors(arm.target, sh).normalize(); }
+      // 实际的捏合点 = 拇指尖和食指尖的中点；把它和目标的差慢慢补回去
+      const pinchPt = arm.fingers[0][2].getWorldPosition(V()).lerp(arm.fingers[1][2].getWorldPosition(V()), 0.5);
+      arm.corr.add(V().subVectors(arm.target, pinchPt).multiplyScalar(0.5)).clampLength(0, 0.12);
     }
     this.first = false;
     // 够不着就探身

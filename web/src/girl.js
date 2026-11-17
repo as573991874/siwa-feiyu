@@ -90,27 +90,31 @@ export class Girl {
       b[pre + 'Foot'].rotation.set((0.55 * k - 0.15 * Math.max(0, Math.sin(p))) * run, 0, 0);
     };
     legPose('left', ph, -1); legPose('right', ph + Math.PI, 1);
-    if (du > 0.001) { // 拔河：左腿朝前伸出去蹬住，右腿在后面撑着
-      b.leftUpperLeg.rotation.x += (-0.62 + 0.1 * tg) * du; b.leftLowerLeg.rotation.x += 0.12 * du; b.leftFoot.rotation.x += 0.35 * du;
-      b.rightUpperLeg.rotation.x += (0.3 - 0.1 * tg) * du; b.rightLowerLeg.rotation.x += 0.45 * du; b.rightFoot.rotation.x += -0.3 * du;
-    }
-    if (sit > 0.001) { // 坐进椅子里翘二郎腿：左腿垂下着地，右腿搭在左膝上，脚尖绷直
-      const k = Math.min(1, sit), swing = Math.sin(t * 2.1) * 0.05 * k; // 翘着的那只脚闲闲地晃
-      b.leftUpperLeg.rotation.set(-1.45 * k, 0.05 * k, -0.06 * k); b.leftLowerLeg.rotation.set(1.3 * k, 0, 0); b.leftFoot.rotation.set(0.2 * k, 0, 0);
-      b.rightUpperLeg.rotation.set(-1.72 * k, -0.18 * k, 0.36 * k); b.rightLowerLeg.rotation.set((0.95 + swing) * k, 0, 0); b.rightFoot.rotation.set(0.55 * k, 0, 0);
+    // 坐在地板上：拔河时向后撑着、左腿伸向你、右膝立起；胜利时双膝并拢立起抱着
+    const fl = Math.min(1, Math.max(du, sit)), isTug = du >= sit, tgw = Math.max(0, tg);
+    const setW = (bone, x, y, z) => { const q = b[bone].rotation; q.set(q.x + (x - q.x) * fl, q.y + (y - q.y) * fl, q.z + (z - q.z) * fl); };
+    if (fl > 0.001) {
+      if (isTug) { // tg > 0 表示她占上风，把左腿往回收
+        const pump = Math.sin(t * 7.5) * 0.05; // 一下一下地往回蹬
+        setW('leftUpperLeg', -1.35 + 0.4 * tgw, 0, -0.05); setW('leftLowerLeg', 0.2 + 0.8 * tgw + pump, 0, 0); setW('leftFoot', 0.4, 0, 0);
+        setW('rightUpperLeg', -2.0, 0.15, 0.22); setW('rightLowerLeg', 2.1, 0, 0); setW('rightFoot', 0.3, 0, 0);
+      } else {
+        setW('leftUpperLeg', -1.95, -0.08, 0.16); setW('leftLowerLeg', 2.05, 0, 0); setW('leftFoot', 0.45, 0, 0);
+        setW('rightUpperLeg', -1.9, 0.08, -0.04); setW('rightLowerLeg', 1.95, 0, 0); setW('rightFoot', 0.45, 0, 0);
+      }
     }
     if (sc > 0.001) { b.leftUpperLeg.rotation.x += -0.22 * sc; b.leftFoot.rotation.x += 0.2 * sc; b.rightUpperLeg.rotation.z += 0.06 * sc; }
     // --- 躯干：每步落地时下沉，蹦跳跑时腾空更高
     const bounce = Math.abs(Math.sin(ph)) * s.bounce * (1 + s.skip * 0.8 * (0.5 + 0.5 * Math.sin(ph * 0.5 + 1))) * run;
     b.hips.position.set(this.hipsRest.x + sway * 0.012 * idle, this.hipsRest.y - 0.03 * run + bounce + Math.max(0, c.hop.x) * 0.08 - Math.abs(c.stumble.x) * 0.02, this.hipsRest.z);
     b.hips.rotation.set(s.lean * run + c.stumble.x * 0.12, 0.14 * sw * run + sway * 0.05 * idle, 0.05 * Math.cos(ph) * run + sway * 0.025 * idle);
-    const sk = Math.min(1, sit);
-    b.hips.position.y -= 0.07 * du + 0.5 * sk; b.hips.position.z += (-0.1 - 0.07 * tg) * du - 0.06 * sk;
-    b.hips.rotation.x += (0.16 - 0.16 * tg) * du - 0.12 * sk - 0.04 * sc; b.hips.rotation.y += -0.18 * sk; b.hips.rotation.z += 0.06 * sc;
-    b.spine.rotation.set(s.lean * 0.5 * run + 0.14 * du + 0.06 * sk, -0.2 * sw * run, -0.04 * Math.cos(ph) * run - sway * 0.03 * idle);
+    const lb = isTug ? 1 : 0;
+    b.hips.position.y -= 0.86 * fl; b.hips.position.z -= 0.3 * fl;
+    b.hips.rotation.x += (-0.15 * lb + 0.05 * (1 - lb)) * fl - 0.04 * sc; b.hips.rotation.z += 0.06 * sc;
+    b.spine.rotation.set(s.lean * 0.5 * run + (-0.18 * lb + 0.22 * (1 - lb)) * fl, -0.2 * sw * run, -0.04 * Math.cos(ph) * run - sway * 0.03 * idle);
     b.chest.rotation.set(0, -0.1 * sw * run, 0);
     b.neck.rotation.set(-s.lean * 0.6 * run, c.headYaw.x * 0.45, c.headTilt.x * 0.4);
-    b.head.rotation.set(-s.lean * 0.5 * run + 0.06 * idle - 0.3 * du - 0.05 * sk + 0.42 * sc, c.headYaw.x * 0.55 + 0.25 * sk + sway * 0.04 * idle, c.headTilt.x * 0.6 + sway * 0.05 * idle);
+    b.head.rotation.set(-s.lean * 0.5 * run + 0.06 * idle + (0.32 * lb + 0.05 * (1 - lb)) * fl + 0.42 * sc, c.headYaw.x * 0.55 + 0.3 * (1 - lb) * fl + sway * 0.04 * idle, c.headTilt.x * 0.6 + sway * 0.05 * idle);
     // --- 手臂：与同侧腿反向摆臂；受惊时举起；入场时右手挥手
     const up = Math.max(0, Math.min(1.2, c.armsUp.x)), wave = Math.max(0, c.wave.x), sa = s.arm * run;
     b.leftUpperArm.rotation.set(0.1 + 0.85 * sw * sa + up * 0.4, up * 0.3, -1.12 + up * 0.3);
@@ -118,29 +122,32 @@ export class Girl {
     b.leftLowerArm.rotation.set(0, -0.3 - 1.15 * sa - up * 1.2, 0);
     b.rightLowerArm.rotation.set(0, 0.3 + 1.15 * sa + up * 1.2 + wave * (0.9 + 0.5 * Math.sin(t * 11)), 0);
     b.leftHand.rotation.set(0, 0, -0.2); b.rightHand.rotation.set(0, 0, 0.2);
-    if (sk > 0.001) { // 左手搭在扶手上，右手搭在翘起的膝盖上
-      b.leftUpperArm.rotation.set(-0.15 * sk, 0.1 * sk, -1.12 + 0.22 * sk); b.leftLowerArm.rotation.set(0, -0.3 - 0.9 * sk, 0);
-      b.rightUpperArm.rotation.set(-0.55 * sk, -0.25 * sk, 1.12 - 0.12 * sk); b.rightLowerArm.rotation.set(0, 0.3 + 0.7 * sk, 0); b.rightHand.rotation.set(0.3 * sk, 0, 0.2);
-    }
-
-
-    if (du > 0.25) { // 拔河：两只手真的伸下去攥住左大腿上的袜口
-      const w = Math.min(1, (du - 0.25) / 0.55), ww = w * w * (3 - 2 * w);
-      b.hips.updateWorldMatrix(true, true);
-      this.root.getWorldQuaternion(_rq); _fw.set(0, 0, 1).applyQuaternion(_rq); _sd.set(1, 0, 0).applyQuaternion(_rq);
-      b.leftUpperLeg.getWorldPosition(_hip); b.leftLowerLeg.getWorldPosition(_knee); _dir.subVectors(_knee, _hip).normalize();
-      for (const [pre, along, side, sgn] of [['left', 0.13, 0.075, 1], ['right', 0.2, -0.045, -1]]) {
-        const up = b[pre + 'UpperArm'], lo = b[pre + 'LowerArm'], hand = b[pre + 'Hand'];
-        _q0.copy(up.quaternion); _q1.copy(lo.quaternion);
-        _tg.copy(_hip).addScaledVector(_dir, along + 0.02 * tg).addScaledVector(_fw, 0.1).addScaledVector(_sd, side); _tg.y += 0.035;
-        twoBoneIK(up, lo, hand, _tg, _pole.copy(_sd).multiplyScalar(sgn * 0.8).addScaledVector(_fw, -0.5));
-        _q2.copy(up.quaternion); _q3.copy(lo.quaternion);
-        up.quaternion.copy(_q0).slerp(_q2, ww); lo.quaternion.copy(_q1).slerp(_q3, ww);
-        hand.rotation.set(0.5 * ww, 0, sgn * -0.2);
+    if (fl > 0.001) {
+      const A = (bone, x, y, z) => { const q = b[bone].rotation; q.set(q.x + (x - q.x) * fl, q.y + (y - q.y) * fl, q.z + (z - q.z) * fl); };
+      if (isTug) { // 两手撑在身后的地板上
+        A('leftUpperArm', 0.75, 0.1, -1.25); A('leftLowerArm', 0, -0.15, 0); A('leftHand', -0.9, 0, -0.2);
+        A('rightUpperArm', 0.75, -0.1, 1.25); A('rightLowerArm', 0, 0.15, 0); A('rightHand', -0.9, 0, 0.2);
+      } else { // 两手抱着膝盖
+        A('leftUpperArm', -0.85, 0.35, -1.0); A('leftLowerArm', 0, -0.85, 0); A('leftHand', 0, 0, -0.1);
+        A('rightUpperArm', -0.85, -0.35, 1.0); A('rightLowerArm', 0, 0.85, 0); A('rightHand', 0, 0, 0.1);
       }
     }
-    const grip = du > 0.25 ? Math.min(1, (du - 0.25) / 0.55) : 0;
-    for (const [side, sg] of [['left', -1], ['right', 1]]) this.fingers[side].forEach((f, i) => { f.rotation.set(0, 0, sg * grip * (i % 3 === 0 ? 1.0 : 1.3)); });
+    if (fl > 0.3) { // 手的落点用 IK 摆准：拔河时撑在身后的地板上，胜利时搭在膝盖上
+      const w = Math.min(1, (fl - 0.3) / 0.5), ww = w * w * (3 - 2 * w);
+      b.hips.updateWorldMatrix(true, true);
+      this.root.getWorldQuaternion(_rq); _fw.set(0, 0, 1).applyQuaternion(_rq); _sd.set(1, 0, 0).applyQuaternion(_rq);
+      b.hips.getWorldPosition(_hip);
+      for (const [pre, sg] of [['left', 1], ['right', -1]]) {
+        const up = b[pre + 'UpperArm'], lo = b[pre + 'LowerArm'], hand = b[pre + 'Hand'];
+        if (isTug) { _tg.copy(_hip).addScaledVector(_fw, -0.22).addScaledVector(_sd, sg * 0.24); _tg.y = 0.03; _pole.copy(_fw).multiplyScalar(-1).addScaledVector(_sd, sg * 0.6); }
+        else { b[pre + 'LowerLeg'].getWorldPosition(_tg); _tg.y += 0.07; _tg.addScaledVector(_fw, 0.02).addScaledVector(_sd, sg * 0.02); _pole.copy(_sd).multiplyScalar(sg).addScaledVector(_fw, -0.3); }
+        _q0.copy(up.quaternion); _q1.copy(lo.quaternion);
+        twoBoneIK(up, lo, hand, _tg, _pole);
+        _q2.copy(up.quaternion); _q3.copy(lo.quaternion);
+        up.quaternion.copy(_q0).slerp(_q2, ww); lo.quaternion.copy(_q1).slerp(_q3, ww);
+      }
+    }
+    for (const side of ['left', 'right']) for (const f of this.fingers[side]) f.rotation.set(0, 0, 0);
     const em = this.vrm.expressionManager;
     if (em) {
       this.blinkT -= dt; if (this.blinkT < 0) { this.blink = 1; this.blinkT = 1.8 + Math.random() * 3; }
