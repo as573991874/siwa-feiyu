@@ -116,26 +116,24 @@ export class Girl {
     b.chest.rotation.set(0, -0.1 * sw * run, 0);
     b.neck.rotation.set(-s.lean * 0.6 * run, c.headYaw.x * 0.45, c.headTilt.x * 0.4);
     b.head.rotation.set(-s.lean * 0.5 * run + 0.06 * idle + (0.32 * lb + 0.05 * (1 - lb)) * fl + 0.42 * sc, c.headYaw.x * 0.55 + 0.3 * (1 - lb) * fl + sway * 0.04 * idle, c.headTilt.x * 0.6 + sway * 0.05 * idle);
-    if (fl > 0.3) { // 坐地：两只脚用 IK 摆到地板上方，绝不穿进地里
-      const w = Math.min(1, (fl - 0.3) / 0.5), ww = w * w * (3 - 2 * w);
-      if (!isTug) { b.hips.position.z += 0.1 * fl; b.hips.position.x += 0.06 * fl; b.hips.rotation.z += -0.1 * fl; b.spine.rotation.z += 0.12 * fl; b.spine.rotation.x = -0.06 * fl; b.chest.rotation.x = -0.05 * fl; } // 侧坐：重心压在左胯，上身往左撑
+    if (fl > 0.01) { // 坐地：两只脚用 IK 摆到地板上方；从当前脚的位置平滑过渡到目标，任何时刻都不穿进地板
+      const ww = fl * fl * (3 - 2 * fl);
+      if (!isTug) { b.spine.rotation.x += -0.12 * fl; b.spine.rotation.z += 0.07 * fl; b.hips.rotation.z += -0.05 * fl; } // 往后靠在撑地的那只手上
       b.hips.updateWorldMatrix(true, true);
       this.root.getWorldQuaternion(_rq); _fw.set(0, 0, 1).applyQuaternion(_rq); _sd.set(1, 0, 0).applyQuaternion(_rq);
       b.hips.getWorldPosition(_base); _base.y = 0;
       const pump = Math.sin(t * 7.5) * 0.02;
       const feet = isTug
-        ? [['left', _base.clone().addScaledVector(_fw, 0.76 - 0.32 * tgw + pump).addScaledVector(_sd, 0.11), _pole.clone().copy(_up).addScaledVector(_fw, 0.6)],
-           ['right', _base.clone().addScaledVector(_fw, 0.3).addScaledVector(_sd, -0.13), _pole.clone().copy(_up).addScaledVector(_fw, 0.5)]]
-        : [['left', _base.clone().addScaledVector(_fw, 0.06).addScaledVector(_sd, -0.3), _pole.clone().copy(_fw).addScaledVector(_sd, 0.5).addScaledVector(_up, 0.3)],   // 横座り：两膝并拢朝左前，两只脚都收到她右手边
-           ['right', _base.clone().addScaledVector(_fw, -0.16).addScaledVector(_sd, -0.27), _pole.clone().copy(_fw).addScaledVector(_sd, 0.5).addScaledVector(_up, 0.3)]];
-      for (const [pre, tgt, pole] of feet) {
-        tgt.y = 0.085; // 脚踝离地的高度
+        ? [['left', _base.clone().addScaledVector(_fw, 0.8 - 0.3 * tgw + pump).addScaledVector(_sd, 0.1), _pole.clone().copy(_up).addScaledVector(_fw, 0.6), -0.3],
+           ['right', _base.clone().addScaledVector(_fw, 0.42).addScaledVector(_sd, -0.04), _pole.clone().copy(_up).addScaledVector(_sd, 0.45).addScaledVector(_fw, 0.4), 0.55]] // 右腿屈膝、膝盖往内侧靠拢
+        : [['left', _base.clone().addScaledVector(_fw, 0.68).addScaledVector(_sd, -0.01), _pole.clone().copy(_up).addScaledVector(_sd, 0.55).addScaledVector(_fw, 0.3), 0.65],  // 两腿朝你伸过来，膝盖微屈并拢、偏向一侧，脚背绷直
+           ['right', _base.clone().addScaledVector(_fw, 0.6).addScaledVector(_sd, -0.11), _pole.clone().copy(_up).addScaledVector(_sd, 0.55).addScaledVector(_fw, 0.3), 0.65]];
+      for (const [pre, tgt, pole, footX] of feet) {
         const ul = b[pre + 'UpperLeg'], ll = b[pre + 'LowerLeg'], ft = b[pre + 'Foot'];
-        _q0.copy(ul.quaternion); _q1.copy(ll.quaternion);
-        twoBoneIK(ul, ll, ft, tgt, pole);
-        _q2.copy(ul.quaternion); _q3.copy(ll.quaternion);
-        ul.quaternion.copy(_q0).slerp(_q2, ww); ll.quaternion.copy(_q1).slerp(_q3, ww);
-        ft.rotation.set(isTug && pre === 'left' ? -0.35 : 0.55, 0, 0); // 伸出去的那只脚勾着脚尖，其余绷直贴地
+        ft.getWorldPosition(_ft); _ft.y = Math.max(_ft.y, 0.085);
+        tgt.y = 0.085; _ft.lerp(tgt, ww); // 脚踝离地 8.5 厘米
+        twoBoneIK(ul, ll, ft, _ft, pole);
+        ft.rotation.set(footX * ww, 0, 0);
       }
     }
     // --- 手臂：与同侧腿反向摆臂；受惊时举起；入场时右手挥手
@@ -163,7 +161,7 @@ export class Girl {
       for (const [pre, sg] of [['left', 1], ['right', -1]]) {
         const up = b[pre + 'UpperArm'], lo = b[pre + 'LowerArm'], hand = b[pre + 'Hand'];
         if (isTug) { _tg.copy(_hip).addScaledVector(_fw, -0.22).addScaledVector(_sd, sg * 0.24); _tg.y = 0.03; _pole.copy(_fw).multiplyScalar(-1).addScaledVector(_sd, sg * 0.6); }
-        else if (pre === 'left') { _tg.copy(_hip).addScaledVector(_sd, 0.34).addScaledVector(_fw, 0.04); _tg.y = 0.03; _pole.copy(_sd).addScaledVector(_fw, -0.4); }
+        else if (pre === 'left') { _tg.copy(_hip).addScaledVector(_sd, 0.3).addScaledVector(_fw, -0.16); _tg.y = 0.03; _pole.copy(_sd).addScaledVector(_fw, -0.6); }
         else { b.rightLowerLeg.getWorldPosition(_tg); _tg.y += 0.06; _pole.copy(_sd).multiplyScalar(-1).addScaledVector(_fw, -0.3); }
         _q0.copy(up.quaternion); _q1.copy(lo.quaternion);
         twoBoneIK(up, lo, hand, _tg, _pole);

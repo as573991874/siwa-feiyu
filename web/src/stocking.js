@@ -217,7 +217,7 @@ export class StockingLeg {
     for (const a of ids) this.cw[a] = 0;
     const o = new THREE.Vector3(c0[cc * 3], c0[cc * 3 + 1], c0[cc * 3 + 2]);
     // c = 全分辨率下标（给蒙皮矩阵和外部使用），ci/cj = 全分辨率网格坐标
-    this.grabbed = { ci: ic * 2, cj: jc * 2, c: jc * 2 * NU + ic * 2, ids, offs, origin: o, target: o.clone(), goal: o.clone() };
+    this.grabbed = { ci: ic * 2, cj: jc * 2, c: jc * 2 * NU + ic * 2, ids, offs, origin: o, target: o.clone(), goal: o.clone(), want: o.clone() };
     this._activate(ic, jc);
     return true;
   }
@@ -232,7 +232,18 @@ export class StockingLeg {
     if (h < 0) g.goal.set(goalRest.x - h * n0[c3], goalRest.y - h * n0[c3 + 1], goalRest.z - h * n0[c3 + 2]);
     const len = g.goal.distanceTo(o), maxLen = this.params.maxPull;
     if (len > maxLen) g.goal.sub(o).multiplyScalar(maxLen / len).add(o);
+    g.want.copy(g.goal);
     return Math.min(len, maxLen);
+  }
+  /** 布尖直接落在给定的点上（绑定空间）：只保证不被按进腿里、不被拉得离谱 */
+  follow(rest) {
+    const g = this.grabbed; if (!g) return;
+    const n0 = this.n0, c3 = g.c * 3, o = g.origin;
+    const h = (rest.x - o.x) * n0[c3] + (rest.y - o.y) * n0[c3 + 1] + (rest.z - o.z) * n0[c3 + 2];
+    g.goal.copy(rest); if (h < 0) g.goal.set(rest.x - h * n0[c3], rest.y - h * n0[c3 + 1], rest.z - h * n0[c3 + 2]);
+    const len = g.goal.distanceTo(o), maxLen = this.params.maxPull * 1.25;
+    if (len > maxLen) g.goal.sub(o).multiplyScalar(maxLen / len).add(o);
+    g.target.copy(g.goal);
   }
   pullDistance() { const g = this.grabbed; return g ? g.target.distanceTo(g.origin) : 0; }
   release() {

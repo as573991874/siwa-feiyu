@@ -74,6 +74,8 @@ class Arm {
     this.setFingers(0);
   }
   /** g: 0 = 自然张开，1 = 拇指食指捏紧、其余手指握起 */
+  /** 拳头里攥住布的那一点：拇指尖与食指中节的中点（世界坐标） */
+  pinchPoint(out) { return out.copy(this.fingers[0][2].getWorldPosition(V())).lerp(this.fingers[1][1].getWorldPosition(V()), 0.5); }
   setFingers(g) {
     const open = [[0.1, 0.1, 0.1], [0.25, 0.25, 0.2], [0.3, 0.3, 0.2], [0.35, 0.35, 0.25], [0.4, 0.4, 0.3]];
     const shut = [[0.7, 0.45, 0.5], [1.25, 1.35, 0.95], [1.35, 1.45, 1.0], [1.4, 1.5, 1.0], [1.4, 1.5, 1.0]]; // 攥成拳：一把抓住布料
@@ -169,7 +171,7 @@ export class Man {
       const over = arm.solve(arm.aim, dir, V().copy(right).multiplyScalar(-0.55 * sgn).addScaledVector(up, -0.8), V().copy(right).multiplyScalar(0.7 * sgn).addScaledVector(up, -0.7), arm.curl);
       if (over > worst) { worst = over; pull.subVectors(arm.target, sh).normalize(); }
       // 实际的捏合点 = 拇指尖和食指尖的中点；把它和目标的差慢慢补回去
-      const pinchPt = arm.fingers[0][2].getWorldPosition(V()).lerp(arm.fingers[1][1].getWorldPosition(V()), 0.5);
+      const pinchPt = arm.pinchPoint(V());
       arm.corr.add(V().subVectors(arm.target, pinchPt).multiplyScalar(0.6)).clampLength(0, 0.2); arm.err = pinchPt.distanceTo(arm.target);
     }
     this.first = false;

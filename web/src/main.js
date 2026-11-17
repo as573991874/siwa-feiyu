@@ -263,7 +263,7 @@ function updateHands(dt, time) {
     const L = hands[0], R = hands[1], d = game.duel;
     if (game.state === 'duel' && (d.phase === 'in' || d.phase === 'tug')) {
       const leg = legs[0], g = leg.grabbed, cell = (a, out) => { const a3 = a * 3; return leg.restToWorld(a, tmpV3.set(leg.p0[a3], leg.p0[a3 + 1], leg.p0[a3 + 2]), out); };
-      if (g) { leg.restToWorld(g.c, g.target, R.pos); R.snap = 40; R.pinch = 1; }
+      if (g) { leg.restToWorld(g.c, g.want, R.pos); R.snap = 40; R.pinch = 1; }
       else { cell(d.cell, R.pos); R.pos.y += 0.1 * (1 - smooth(d.t / 0.9)); R.snap = 10; R.pinch = 0.4; }
       cell(d.ankle, L.pos); L.pos.y += 0.02; L.pinch = 0.85; L.snap = g ? 30 : 8;
     } else if (game.state === 'lose') { // 力竭趴地：两只手摊在地板上
@@ -274,7 +274,7 @@ function updateHands(dt, time) {
       // 撕开时右手往右下方甩开，不挡镜头
       if (game.state === 'duel' && d.phase === 'rip') { { const k = smooth(d.t / 0.5); R.pos.copy(d.from).addScaledVector(fwd, -0.12 * k).addScaledVector(right, 0.18 * k).addScaledVector(up, 0.06 * k); } R.pinch = 1; R.snap = 20; }
     }
-    man.update(dt, camera, hands[0], hands[1], time);
+    man.update(dt, camera, hands[0], hands[1], time); followHands();
     return;
   }
   for (const H of hands) {
@@ -289,7 +289,7 @@ function updateHands(dt, time) {
         const T = Math.min(1.05, H.tension), yank = Math.sin(H.t * 34) * 0.012 * T; // 一下一下地往回拽
         const c3 = g.c * 3, d = 0.03 + 0.17 * smooth(T) + yank, n0 = leg.n0;
         leg.drag(tmpV.set(g.origin.x + n0[c3] * d, g.origin.y + n0[c3 + 1] * d + d * 0.3, g.origin.z + n0[c3 + 2] * d));
-        leg.restToWorld(g.c, g.target, H.pos); H.pinch = 1; H.snap = 40;
+        leg.restToWorld(g.c, g.want, H.pos); H.pinch = 1; H.snap = 40;
         if (H.tension >= 1) doTear(h);
         continue;
       }
@@ -320,7 +320,13 @@ function updateHands(dt, time) {
     if (game.state === 'intro' && game.t < 1.9) { tmpV.copy(camera.position).addScaledVector(right, sgn * 0.3).addScaledVector(fwd, 0.25); tmpV.y -= 0.6; }
     H.pos.copy(tmpV); H.pinch = pinch; H.snap = 14 + 14 * game.view;
   }
-  man.update(dt, camera, hands[0], hands[1], time);
+  man.update(dt, camera, hands[0], hands[1], time); followHands();
+}
+/** 丝袜被拉起的尖端直接跟着糙汉拳头里攥住布的那一点走——手在哪，布就在哪 */
+const _pp = new THREE.Vector3(), _pr = new THREE.Vector3();
+function followHands() {
+  const pairs = game.state === 'duel' ? [[legs[0], man.right]] : [[legs[0], man.left], [legs[1], man.right]];
+  for (const [leg, arm] of pairs) { const g = leg.grabbed; if (!g) continue; arm.pinchPoint(_pp); leg.follow(leg.worldToRest(g.c, _pp, _pr)); }
 }
 
 // ------------------------------------------------------------ 相机：冲刺时高机位看全身，近身时压低看腿；全程带奔跑晃动
@@ -351,10 +357,10 @@ function updateCamera(dt, time) {
     if (d.phase === 'in') { _ip.set(gx + 0.55, 1.0, 1.55); _il.set(gx + 0.05, 0.35, 0.05); fov = 62; rate = 4; }
     else if (d.phase === 'tug') { _ip.set(gx + lerp(0.72, 0.62, T) + br * 0.008, lerp(0.8, 0.68, T), lerp(1.1, 1.0, T)); _il.set(gx + 0.06, lerp(0.2, 0.16, T), lerp(0.08, 0.14, T)); fov = lerp(60, 52, T); }
     else if (d.phase === 'rip') { _ip.set(gx + 0.62, 0.66, 0.98); _il.set(gx + 0.06, 0.15, 0.14); fov = 50; rate = 10; }
-    else if (d.phase === 'sit') { _ip.set(gx + 0.35, 0.9, 1.45); _il.set(gx, 0.3, -0.15); fov = 56; rate = 4; }
+    else if (d.phase === 'sit') { _ip.set(gx + 0.42, 0.95, 1.6); _il.set(gx, 0.28, -0.05); fov = 56; rate = 4; }
     else { _ip.copy(_gp); _il.copy(_gl); rate = 5; }
     pos = _ip; look = _il; roll = br * 0.006;
-  } else if (game.state === 'win') { _ip.set(gx + 0.35 + br * 0.01, 0.9, 1.45); _il.set(gx, 0.3, -0.15); pos = _ip; look = _il; fov = 54; roll = br * 0.004; rate = 4; }
+  } else if (game.state === 'win') { _ip.set(gx + 0.42 + br * 0.01, 0.95, 1.6); _il.set(gx, 0.28, -0.05); pos = _ip; look = _il; fov = 54; roll = br * 0.004; rate = 4; }
   else if (game.state === 'lose') { // 趴在地上，视线从她的鞋尖慢慢抬到脸上
     const a = smooth((game.resT - 0.5) / 1.6);
     _ip.set(0.1, lerp(0.9, 0.25, smooth(game.resT / 0.5)) + br * 0.006, 1.16); _il.set(0.02, lerp(0.0, 0.64, a), 0.05);
