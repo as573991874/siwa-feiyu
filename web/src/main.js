@@ -33,12 +33,12 @@ const STYLE = {
 // hold: 拽多久才撕得开；win: 后甩到多高才够得着（越大窗口越窄）；escape: 近身后她甩开你的速度
 // tap: 拼力气时每点一下涨多少；pullback: 她每秒往回拽多少
 const LEVELS = [
-  { name: '① 午后客厅', sub: '超薄黑丝 · 慢跑', style: 'black', thick: 0.6, hold: 0.24, run: 'jog', speed: 3.2, win: 0.15, escape: 0.13, time: 40, goal: 0.42, scene: 'living', mood: 'afternoon', gap: 2.2, tap: 0.045, pullback: 0.18 },
-  { name: '② 清晨树屋', sub: '白丝 · 蹦跳跑', style: 'white', thick: 1.0, hold: 0.3, run: 'skip', speed: 3.4, win: 0.3, escape: 0.16, time: 40, goal: 0.5, scene: 'treehouse', mood: 'morning', gap: 2.6, tap: 0.043, pullback: 0.2 },
-  { name: '③ 黄昏卧室', sub: '渔网 · 蛇形走位', style: 'net', thick: 1.0, hold: 0.32, run: 'zigzag', speed: 3.8, win: 0.4, escape: 0.19, time: 40, goal: 0.55, scene: 'bedroom', mood: 'dusk', gap: 2.8, tap: 0.041, pullback: 0.22 },
-  { name: '④ 烛光客厅', sub: '超薄肉丝 · 喘口气', style: 'nude', thick: 0.6, hold: 0.2, run: 'stroll', speed: 2.6, win: 0.1, escape: 0.1, time: 22, goal: 0.48, scene: 'living', mood: 'candle', gap: 2.0, tap: 0.05, pullback: 0.16 },
-  { name: '⑤ 萤火树屋', sub: '加厚樱粉 · 全力冲刺', style: 'pink', thick: 1.6, hold: 0.4, run: 'sprint', speed: 4.6, win: 0.5, escape: 0.24, time: 45, goal: 0.62, scene: 'treehouse', mood: 'firefly', gap: 3.0, tap: 0.039, pullback: 0.23 },
-  { name: '⑥ 霓虹卧室', sub: '加厚黑丝 · 多动症', style: 'black', thick: 1.7, hold: 0.42, run: 'hyper', speed: 5.0, win: 0.55, escape: 0.28, time: 48, goal: 0.7, scene: 'bedroom', mood: 'neon', gap: 3.2, tap: 0.038, pullback: 0.24 },
+  { name: '① 午后客厅', sub: '超薄黑丝 · 慢跑', style: 'black', thick: 0.6, hold: 0.24, run: 'jog', speed: 3.2, win: 0.15, escape: 0.13, time: 30, goal: 0.42, scene: 'living', mood: 'afternoon', gap: 2.2, tap: 0.045, pullback: 0.18 },
+  { name: '② 清晨树屋', sub: '白丝 · 蹦跳跑', style: 'white', thick: 1.0, hold: 0.3, run: 'skip', speed: 3.4, win: 0.3, escape: 0.16, time: 30, goal: 0.5, scene: 'treehouse', mood: 'morning', gap: 2.6, tap: 0.043, pullback: 0.2 },
+  { name: '③ 黄昏卧室', sub: '渔网 · 蛇形走位', style: 'net', thick: 1.0, hold: 0.32, run: 'zigzag', speed: 3.8, win: 0.4, escape: 0.19, time: 32, goal: 0.55, scene: 'bedroom', mood: 'dusk', gap: 2.8, tap: 0.041, pullback: 0.22 },
+  { name: '④ 烛光客厅', sub: '超薄肉丝 · 喘口气', style: 'nude', thick: 0.6, hold: 0.2, run: 'stroll', speed: 2.6, win: 0.1, escape: 0.1, time: 18, goal: 0.48, scene: 'living', mood: 'candle', gap: 2.0, tap: 0.05, pullback: 0.16 },
+  { name: '⑤ 萤火树屋', sub: '加厚樱粉 · 全力冲刺', style: 'pink', thick: 1.6, hold: 0.4, run: 'sprint', speed: 4.6, win: 0.5, escape: 0.24, time: 36, goal: 0.62, scene: 'treehouse', mood: 'firefly', gap: 3.0, tap: 0.039, pullback: 0.23 },
+  { name: '⑥ 霓虹卧室', sub: '加厚黑丝 · 多动症', style: 'black', thick: 1.7, hold: 0.42, run: 'hyper', speed: 5.0, win: 0.55, escape: 0.28, time: 40, goal: 0.7, scene: 'bedroom', mood: 'neon', gap: 3.2, tap: 0.038, pullback: 0.24 },
 ];
 const GRAB_RANGE = 1.12, GAP_MIN = 0.78, GAP_MAX = 4.2;
 const save = { unlocked: 1, sfx: true, shake: 1 };
@@ -244,7 +244,8 @@ function doTear(h) {
   burst(H.from, 7 + Math.floor(energy * 4), tmpV.subVectors(camera.position, H.from).normalize());
   sfx.rip(Math.min(1.4, energy)); game.shake = 0.03; game.slow = 0.09; ui.flash = 0.5;
   game.tears++;
-  game.power = Math.min(1, game.power + 0.085 * (1 + 0.08 * Math.min(6, game.combo - 1)));
+  game.power = Math.min(1, game.power + 0.1 * (1 + 0.08 * Math.min(6, game.combo - 1)));
+  if (!game.duels && game.broken > game.lv.goal * 0.55) game.power = 1; // 进度过半还没触发过，就直接给一次
   girl.react('tear');
   pop(game.combo >= 3 ? `左右开弓 ×${game.combo}！` : chain ? '顺着撕！' : '嘶啦！');
 }
@@ -344,7 +345,7 @@ function updateCamera(dt, time) {
   if (game.state === 'duel') { // 拼力气：越绷越贴近小腿；撕开的一瞬间怼上去；认输时拉远
     const d = game.duel, T = smooth((d.T - 0.45) / 0.5); rate = 7;
     if (d.phase === 'in') { _ip.set(gx + 0.3, 1.05, 1.9); _il.set(gx, 0.9, 0.05); fov = 60; rate = 5; }                // 先给个全身：她回身站定
-    else if (d.phase === 'tug') { _ip.set(gx + lerp(0.3, 0.72, T) + br * 0.01, lerp(0.95, 0.56, T), lerp(1.22, 0.74, T)); _il.set(gx + 0.05, lerp(0.8, 0.41, T), lerp(0.1, 0.24, T)); fov = lerp(70, 46, T); } // 越绷越绕到侧面贴近，看得清布面被拉起的轮廓
+    else if (d.phase === 'tug') { _ip.set(gx + lerp(0.32, 0.72, T) + br * 0.01, lerp(0.98, 0.56, T), lerp(1.08, 0.74, T)); _il.set(gx + 0.05, lerp(0.84, 0.41, T), lerp(0.1, 0.24, T)); fov = lerp(74, 46, T); } // 越绷越绕到侧面贴近，看得清布面被拉起的轮廓
     else if (d.phase === 'rip') { _ip.set(gx + 0.62, 0.52, 0.86); _il.set(gx + 0.13, 0.4, 0.26); fov = 44; rate = 10; }
     else if (d.phase === 'sit') { _ip.set(gx + 0.32, 1.2, 1.75); _il.set(gx, 0.42, 0); fov = 54; rate = 4; }
     else { _ip.copy(_gp); _il.copy(_gl); rate = 5; }
@@ -380,7 +381,8 @@ const game = {
     girl.setStyle(lv.run); girl.setRunning(false); girl.c.yaw.x = girl.c.yaw.t = 0; girl.c.run.x = 0; girl.c.x.x = 0; girl.c.wave.t = 1;
     girl.faceT.angry = 0; girl.faceT.happy = 0.4; girl.faceT.sad = 0; girl.faceT.surprised = 0; girl.lids = 0;
     for (const ch of ['duel', 'sit', 'scorn', 'tug']) { girl.c[ch].t = 0; girl.c[ch].x = 0; girl.c[ch].v = 0; }
-    this.power = 0; this.bonus = 0; this.duel.phase = 'none'; this.scale = 1; params.pinchRadius = 0.016;
+    girl.c.yaw.k = 26; girl.c.duel.k = 40;
+    this.power = 0; this.bonus = 0; this.duels = 0; this.duel.phase = 'none'; this.scale = 1; params.pinchRadius = 0.016;
     this.time = lv.time; this.broken = 0; this.gap = 1.6; this.stamina = 1; this.combo = 0; this.lastHand = -1; this.lastTear = -9; this.tears = 0; this.view = 0; this.sprintK = 0; this.winded = false;
     input.sprint = false; input.hand = [false, false];
     this.state = 'intro'; this.t = fullIntro ? 0 : 1.0; this.paused = false; camState.n = 0;
@@ -430,9 +432,10 @@ const game = {
   // ---------- 大成功：气力槽攒满 → 慢放 → 她回身拽住袜口跟你拔河，狂点屏幕拼力气
   startDuel() {
     const d = this.duel, leg = legs[0];
-    this.state = 'duel'; d.phase = 'in'; d.t = 0; d.T = 0.42; d.ladder = 0; d.botTap = 0; this.power = 1; input.sprint = false; input.hand = [false, false];
+    this.duels++; this.state = 'duel'; d.phase = 'in'; d.t = 0; d.T = 0.42; d.ladder = 0; d.botTap = 0; this.power = 1; input.sprint = false; input.hand = [false, false];
     d.cell = Math.round((leg.NV - 1) * 0.6) * leg.NU + Math.round(leg.NU * 0.25); // 左小腿正面
     girl.setRunning(false); girl.c.duel.t = 1; girl.faceT.angry = 0.5; girl.faceT.happy = 0.25;
+    girl.c.yaw.k = 190; girl.c.duel.k = 150; // 慢放里弹簧也跟着变慢，转身和摆姿势要加快才来得及
     big('大成功！', '狂点屏幕 · 拼力气', 1.3); ui.tipT = 9; sfx.win(); ui.flash = 0.6; say('想得美！');
   },
   duelUpdate(rdt) {
@@ -470,6 +473,7 @@ const game = {
       girl.c.sit.t = 0; girl.faceT.angry = 0; girl.faceT.happy = 0.4; d.phase = 'out'; d.t = 0; say('再来！抓不到～');
     } else if ((d.phase === 'out' && d.t > 0.55) || (d.phase === 'fail' && d.t > 0.8)) {
       this.power = d.phase === 'fail' ? 0.3 : 0; this.gap = d.phase === 'fail' ? 2.3 : 1.9; d.phase = 'none'; this.scale = 1;
+      girl.c.yaw.k = 26; girl.c.duel.k = 40;
       girl.setRunning(true); this.state = 'play'; this.view = 0; camState.n = 1;
     }
   },

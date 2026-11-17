@@ -1,6 +1,12 @@
 // 肥鱼的动作：程序化奔跑循环（左右腿交替、蹬地后小腿向后甩起）+ 欠阻尼弹簧叠加的小动作。
 // 所有定时都走游戏时间（later），这样逐帧推进录像时也是确定的。
 
+import * as THREE from 'three';
+import { twoBoneIK } from './ik.js';
+
+const _hip = new THREE.Vector3(), _knee = new THREE.Vector3(), _dir = new THREE.Vector3(), _fw = new THREE.Vector3(), _sd = new THREE.Vector3(), _tg = new THREE.Vector3(), _pole = new THREE.Vector3();
+const _rq = new THREE.Quaternion(), _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _q3 = new THREE.Quaternion();
+
 class Spring {
   constructor(v = 0, k = 70, z = 0.5) { this.x = v; this.v = 0; this.t = v; this.k = k; this.z = z; }
   step(dt) { const a = (this.t - this.x) * this.k - this.v * 2 * this.z * Math.sqrt(this.k); this.v += a * dt; this.x += this.v * dt; return this.x; }
@@ -95,11 +101,11 @@ export class Girl {
     b.hips.position.set(this.hipsRest.x + sway * 0.012 * idle, this.hipsRest.y - 0.03 * run + bounce + Math.max(0, c.hop.x) * 0.08 - Math.abs(c.stumble.x) * 0.02, this.hipsRest.z);
     b.hips.rotation.set(s.lean * run + c.stumble.x * 0.12, 0.14 * sw * run + sway * 0.05 * idle, 0.05 * Math.cos(ph) * run + sway * 0.025 * idle);
     b.hips.position.y -= 0.07 * du + 0.8 * sit; b.hips.position.z += (-0.1 - 0.07 * tg) * du - 0.12 * sit;
-    b.hips.rotation.x += (0.3 - 0.22 * tg) * du + 0.1 * sit - 0.04 * sc; b.hips.rotation.z += 0.06 * sc;
-    b.spine.rotation.set(s.lean * 0.5 * run + 0.28 * du + 0.12 * sit, -0.2 * sw * run, -0.04 * Math.cos(ph) * run - sway * 0.03 * idle);
+    b.hips.rotation.x += (0.16 - 0.16 * tg) * du + 0.1 * sit - 0.04 * sc; b.hips.rotation.z += 0.06 * sc;
+    b.spine.rotation.set(s.lean * 0.5 * run + 0.14 * du + 0.12 * sit, -0.2 * sw * run, -0.04 * Math.cos(ph) * run - sway * 0.03 * idle);
     b.chest.rotation.set(0, -0.1 * sw * run, 0);
     b.neck.rotation.set(-s.lean * 0.6 * run, c.headYaw.x * 0.45, c.headTilt.x * 0.4);
-    b.head.rotation.set(-s.lean * 0.5 * run + 0.06 * idle - 0.4 * du - 0.25 * sit + 0.42 * sc, c.headYaw.x * 0.55 + sway * 0.04 * idle, c.headTilt.x * 0.6 + sway * 0.05 * idle);
+    b.head.rotation.set(-s.lean * 0.5 * run + 0.06 * idle - 0.3 * du - 0.25 * sit + 0.42 * sc, c.headYaw.x * 0.55 + sway * 0.04 * idle, c.headTilt.x * 0.6 + sway * 0.05 * idle);
     // --- 手臂：与同侧腿反向摆臂；受惊时举起；入场时右手挥手
     const up = Math.max(0, Math.min(1.2, c.armsUp.x)), wave = Math.max(0, c.wave.x), sa = s.arm * run;
     b.leftUpperArm.rotation.set(0.1 + 0.85 * sw * sa + up * 0.4, up * 0.3, -1.12 + up * 0.3);
@@ -107,15 +113,26 @@ export class Girl {
     b.leftLowerArm.rotation.set(0, -0.3 - 1.15 * sa - up * 1.2, 0);
     b.rightLowerArm.rotation.set(0, 0.3 + 1.15 * sa + up * 1.2 + wave * (0.9 + 0.5 * Math.sin(t * 11)), 0);
     b.leftHand.rotation.set(0, 0, -0.2); b.rightHand.rotation.set(0, 0, 0.2);
-    if (du > 0.001) { // 两只手往下够，攥住自己大腿上的袜口往回拽
-      b.leftUpperArm.rotation.x += -0.75 * du; b.leftUpperArm.rotation.z += 0.12 * du; b.leftLowerArm.rotation.y += -0.35 * du;
-      b.rightUpperArm.rotation.x += -0.7 * du; b.rightUpperArm.rotation.z += -0.38 * du; b.rightLowerArm.rotation.y += 0.55 * du;
-    }
     if (sit > 0.001) { // 坐地上，两手撑在身前
       b.leftUpperArm.rotation.x += -0.35 * sit; b.rightUpperArm.rotation.x += -0.35 * sit; b.leftUpperArm.rotation.z += 0.2 * sit; b.rightUpperArm.rotation.z += -0.2 * sit;
     }
 
 
+    if (du > 0.25) { // 拔河：两只手真的伸下去攥住左大腿上的袜口
+      const w = Math.min(1, (du - 0.25) / 0.55), ww = w * w * (3 - 2 * w);
+      b.hips.updateWorldMatrix(true, true);
+      this.root.getWorldQuaternion(_rq); _fw.set(0, 0, 1).applyQuaternion(_rq); _sd.set(1, 0, 0).applyQuaternion(_rq);
+      b.leftUpperLeg.getWorldPosition(_hip); b.leftLowerLeg.getWorldPosition(_knee); _dir.subVectors(_knee, _hip).normalize();
+      for (const [pre, along, side, sgn] of [['left', 0.13, 0.075, 1], ['right', 0.2, -0.045, -1]]) {
+        const up = b[pre + 'UpperArm'], lo = b[pre + 'LowerArm'], hand = b[pre + 'Hand'];
+        _q0.copy(up.quaternion); _q1.copy(lo.quaternion);
+        _tg.copy(_hip).addScaledVector(_dir, along + 0.02 * tg).addScaledVector(_fw, 0.1).addScaledVector(_sd, side); _tg.y += 0.035;
+        twoBoneIK(up, lo, hand, _tg, _pole.copy(_sd).multiplyScalar(sgn * 0.8).addScaledVector(_fw, -0.5));
+        _q2.copy(up.quaternion); _q3.copy(lo.quaternion);
+        up.quaternion.copy(_q0).slerp(_q2, ww); lo.quaternion.copy(_q1).slerp(_q3, ww);
+        hand.rotation.set(0.5 * ww, 0, sgn * -0.2);
+      }
+    }
     const em = this.vrm.expressionManager;
     if (em) {
       this.blinkT -= dt; if (this.blinkT < 0) { this.blink = 1; this.blinkT = 1.8 + Math.random() * 3; }
