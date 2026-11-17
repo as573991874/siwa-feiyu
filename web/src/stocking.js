@@ -414,6 +414,12 @@ export class StockingLeg {
       if (jj > 6 && jj < NV - 7) hole(jj, (0.45 + 0.6 * rand()) * Math.sqrt(E), 0.1 + rand() * 0.45);
     }
   }
+  /** 只抽丝不破洞：绷到极限前，纱线先一道一道地脱开 */
+  ladderAt(ci, cj, lenM = 0.05) {
+    const { NU, NV, fit } = this; cj = Math.min(NV - 6, Math.max(5, cj));
+    const du = fit.circ[cj] / NU;
+    this.growths.push({ kind: 'run', ci, cj, up: lenM * (0.6 + rand()) / fit.dv, down: lenM * (0.6 + rand()) / fit.dv, wHalf: (0.002 + 0.003 * rand()) / du, amp: 0.003 * rand() / du, freq: 0.05 + 0.08 * rand(), ph: rand() * 6.28, t: 0, T: 0.5 + 0.4 * rand() });
+  }
   _growTears(dt) {
     if (!this.growths.length) return;
     const { NU, NV, D, Lf } = this;

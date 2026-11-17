@@ -89,6 +89,13 @@ export class Skirt {
     }
     this._build();
   }
+  /** 角色瞬移（换关、从坐姿复位）后把裙子直接摆回静止形状，否则会被拉成一条长裙 */
+  reset() {
+    const { p, pp, local } = this, m = this.hips.matrixWorld.elements;
+    for (let k = 0; k < SC * SR; k++) { const o = k * 3, x = local[o], y = local[o + 1], z = local[o + 2];
+      p[o] = pp[o] = m[0] * x + m[4] * y + m[8] * z + m[12]; p[o + 1] = pp[o + 1] = m[1] * x + m[5] * y + m[9] * z + m[13]; p[o + 2] = pp[o + 2] = m[2] * x + m[6] * y + m[10] * z + m[14]; }
+    this._build();
+  }
   _link(a, b, L, wa, both) {
     const p = this.p, a3 = a * 3, b3 = b * 3;
     const dx = p[b3] - p[a3], dy = p[b3 + 1] - p[a3 + 1], dz = p[b3 + 2] - p[a3 + 2];

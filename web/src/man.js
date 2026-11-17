@@ -125,13 +125,14 @@ export class Man {
     this.root = fbx;
     fbx.scale.setScalar(SCALE); fbx.rotation.y = Math.PI; // 面朝 -Z（朝向肥鱼）
     this.floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this.bodyClip = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0); // 把躯干裁掉，第一人称里只留两条手臂
     fbx.traverse((o) => {
       if (!o.isSkinnedMesh) return;
       o.frustumCulled = false;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       o.material = mats.map((m) => {
         if (!/body/i.test(m.name)) { const hid = new THREE.MeshBasicMaterial(); hid.visible = false; return hid; }
-        return new THREE.MeshStandardMaterial({ map, normalMap: nrm, roughness: 0.62, metalness: 0, clippingPlanes: [this.floor] });
+        return new THREE.MeshStandardMaterial({ map, normalMap: nrm, roughness: 0.62, metalness: 0, clippingPlanes: [this.floor, this.bodyClip] });
       });
       if (!Array.isArray(o.material) || mats.length === 1) o.material = o.material[0];
     });
@@ -157,6 +158,7 @@ export class Man {
     const eye = V().copy(camera.position).addScaledVector(flat, -0.11).addScaledVector(V().set(0, 1, 0), -0.09);
     this.root.position.copy(eye).sub(this.headOff).add(this.leanOff);
     this.root.updateMatrixWorld(true);
+    this.bodyClip.setFromNormalAndCoplanarPoint(flat, this.right.upper.getWorldPosition(V()).lerp(this.left.upper.getWorldPosition(V()), 0.5).addScaledVector(flat, 0.17));
     let worst = -1, pull = V();
     for (const [arm, tg, sgn] of [[this.right, R, 1], [this.left, L, -1]]) {
       const k = this.first ? 1 : 1 - Math.exp(-dt * (tg.snap || 16));

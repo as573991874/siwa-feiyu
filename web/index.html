@@ -26,6 +26,17 @@
   #prog .fill { height: 100%; width: 0; border-radius: 8px; background: linear-gradient(90deg, #ff9fc0, #ff4d86); }
   #prog .goal { position: absolute; top: -4px; bottom: -4px; width: 3px; background: #ffe27a; border-radius: 2px; }
   #prog .txt { position: absolute; inset: 0; text-align: center; font: 700 11px/16px "Segoe UI", sans-serif; }
+  #power { position: relative; height: 9px; margin-top: 6px; border-radius: 5px; background: #0008; overflow: hidden; }
+  #power i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #ffd25a, #ff8a3c); }
+  #power b { position: absolute; left: 6px; top: -4px; font-size: 10px; }
+  #power.full i { background: linear-gradient(90deg, #fff27a, #ff4d86); }
+  #tug { position: absolute; left: 8%; right: 8%; bottom: 17%; pointer-events: none; text-shadow: 0 2px 6px #000d; }
+  #tug .who { display: flex; justify-content: space-between; font-weight: 800; font-size: 14px; }
+  #tug .bar { height: 22px; border-radius: 11px; background: #5aa0ffcc; border: 2px solid #fff; overflow: hidden; }
+  #tug .bar i { display: block; height: 100%; margin-left: auto; width: 40%; background: linear-gradient(270deg, #ff4d86, #ffb0c8); }
+  #tug .lab { margin-top: 8px; text-align: center; font: 900 22px/1 "Segoe UI", "Microsoft YaHei", sans-serif; color: #ffe27a; }
+  #tug.hit .bar { animation: hit .12s; }
+  @keyframes hit { 50% { transform: scale(1.04, 1.25); } }
   #meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; font-weight: 600; }
   #combo { color: #ffe27a; }
 
@@ -69,11 +80,13 @@
   <div id="hud" class="hidden">
     <div class="top"><div id="lvname"></div><div id="time">45.0</div><button id="gear" title="暂停">⏸</button></div>
     <div id="prog"><div class="fill"></div><div class="goal"></div><div class="txt"></div></div>
+    <div id="power"><i></i><b>气力</b></div>
     <div id="meta"><span id="gap"></span><span id="combo"></span></div>
   </div>
   <div id="bubble"></div><div id="pop"></div>
   <div id="big"><b></b><span></span></div>
   <div id="tip"></div>
+  <div id="tug" class="hidden"><div class="who"><span>她</span><span>你</span></div><div class="bar"><i></i></div><div class="lab">狂点屏幕！别停！</div></div>
   <div id="stam" class="hidden"><i></i></div>
   <div id="pad" class="hidden">
     <div class="btn" id="bL">左手<small>A / ←</small></div>

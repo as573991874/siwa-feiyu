@@ -8,7 +8,7 @@ import { StockingLeg } from './stocking.js';
 import { Skirt } from './skirt.js';
 import { Girl } from './girl.js';
 import { loadMan } from './man.js';
-import { Boardwalk } from './env.js';
+import { Interior } from './env.js';
 import * as sfx from './audio.js';
 import { makeSharedUniforms, makeLegacyLegMaterial, makeBackdrop } from './shaders.js';
 
@@ -31,13 +31,14 @@ const STYLE = {
   net: { color: '#120e0d', sheen: '#6f625c', dens: 1.0, net: 1 },
 };
 // hold: 拽多久才撕得开；win: 后甩到多高才够得着（越大窗口越窄）；escape: 近身后她甩开你的速度
+// tap: 拼力气时每点一下涨多少；pullback: 她每秒往回拽多少
 const LEVELS = [
-  { name: '① 海边晨跑', sub: '超薄黑丝 · 慢跑', style: 'black', thick: 0.6, hold: 0.24, run: 'jog', speed: 3.2, win: 0.15, escape: 0.13, time: 40, goal: 0.40, sky: 'morning', gap: 2.2 },
-  { name: '② 蹦蹦跳跳', sub: '白丝 · 蹦跳跑', style: 'white', thick: 1.0, hold: 0.3, run: 'skip', speed: 3.4, win: 0.3, escape: 0.16, time: 40, goal: 0.48, sky: 'noon', gap: 2.6 },
-  { name: '③ 渔网蛇行', sub: '渔网 · 蛇形走位', style: 'net', thick: 1.0, hold: 0.32, run: 'zigzag', speed: 3.8, win: 0.4, escape: 0.19, time: 40, goal: 0.52, sky: 'cloudy', gap: 2.8 },
-  { name: '④ 夕阳散步', sub: '超薄肉丝 · 喘口气', style: 'nude', thick: 0.6, hold: 0.2, run: 'stroll', speed: 2.6, win: 0.1, escape: 0.1, time: 22, goal: 0.45, sky: 'sunset', gap: 2.0 },
-  { name: '⑤ 樱粉冲刺', sub: '加厚樱粉 · 全力冲刺', style: 'pink', thick: 1.6, hold: 0.4, run: 'sprint', speed: 4.6, win: 0.5, escape: 0.24, time: 45, goal: 0.6, sky: 'dusk', gap: 3.0 },
-  { name: '⑥ 终极肥鱼', sub: '加厚黑丝 · 多动症', style: 'black', thick: 1.7, hold: 0.42, run: 'hyper', speed: 5.0, win: 0.55, escape: 0.28, time: 48, goal: 0.66, sky: 'night', gap: 3.2 },
+  { name: '① 午后客厅', sub: '超薄黑丝 · 慢跑', style: 'black', thick: 0.6, hold: 0.24, run: 'jog', speed: 3.2, win: 0.15, escape: 0.13, time: 40, goal: 0.42, scene: 'living', mood: 'afternoon', gap: 2.2, tap: 0.045, pullback: 0.18 },
+  { name: '② 清晨树屋', sub: '白丝 · 蹦跳跑', style: 'white', thick: 1.0, hold: 0.3, run: 'skip', speed: 3.4, win: 0.3, escape: 0.16, time: 40, goal: 0.5, scene: 'treehouse', mood: 'morning', gap: 2.6, tap: 0.043, pullback: 0.2 },
+  { name: '③ 黄昏卧室', sub: '渔网 · 蛇形走位', style: 'net', thick: 1.0, hold: 0.32, run: 'zigzag', speed: 3.8, win: 0.4, escape: 0.19, time: 40, goal: 0.55, scene: 'bedroom', mood: 'dusk', gap: 2.8, tap: 0.041, pullback: 0.22 },
+  { name: '④ 烛光客厅', sub: '超薄肉丝 · 喘口气', style: 'nude', thick: 0.6, hold: 0.2, run: 'stroll', speed: 2.6, win: 0.1, escape: 0.1, time: 22, goal: 0.48, scene: 'living', mood: 'candle', gap: 2.0, tap: 0.05, pullback: 0.16 },
+  { name: '⑤ 萤火树屋', sub: '加厚樱粉 · 全力冲刺', style: 'pink', thick: 1.6, hold: 0.4, run: 'sprint', speed: 4.6, win: 0.5, escape: 0.24, time: 45, goal: 0.62, scene: 'treehouse', mood: 'firefly', gap: 3.0, tap: 0.039, pullback: 0.23 },
+  { name: '⑥ 霓虹卧室', sub: '加厚黑丝 · 多动症', style: 'black', thick: 1.7, hold: 0.42, run: 'hyper', speed: 5.0, win: 0.55, escape: 0.28, time: 48, goal: 0.7, scene: 'bedroom', mood: 'neon', gap: 3.2, tap: 0.038, pullback: 0.24 },
 ];
 const GRAB_RANGE = 1.12, GAP_MIN = 0.78, GAP_MAX = 4.2;
 const save = { unlocked: 1, sfx: true, shake: 1 };
@@ -54,9 +55,9 @@ const camera = new THREE.PerspectiveCamera(66, 9 / 16, 0.02, 400);
 const backdrop = makeBackdrop(); scene.add(backdrop);
 const keyDirW = new THREE.Vector3(0.5, 0.75, 0.6).normalize(), fillDirW = new THREE.Vector3(-0.7, 0.15, 0.5).normalize();
 const key = new THREE.DirectionalLight(0xfff4ea, 1.7); key.position.copy(keyDirW).multiplyScalar(5); scene.add(key);
-scene.add(new THREE.HemisphereLight(0xcfe3f0, 0x8d8690, 0.9), new THREE.AmbientLight(0xffffff, 0.5));
+const hemi = new THREE.HemisphereLight(0xcfe3f0, 0x8d8690, 0.9); scene.add(hemi, new THREE.AmbientLight(0xffffff, 0.35));
 const shared = makeSharedUniforms();
-const world = new Boardwalk(scene, backdrop, key);
+const world = new Interior(scene, backdrop, key, hemi);
 
 function radialTexture(stops) {
   const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -177,6 +178,7 @@ const input = { sprint: false, hand: [false, false] };
 const KEYS = { Space: 'sprint', ShiftLeft: 'sprint', ShiftRight: 'sprint', KeyW: 'sprint', ArrowUp: 'sprint', KeyA: 0, ArrowLeft: 0, KeyJ: 0, KeyD: 1, ArrowRight: 1, KeyL: 1 };
 function setInput(k, on) {
   if (game.bot) return;
+  if (game.state === 'duel') { if (on) duelTap(); return; }
   if (k === 'sprint') input.sprint = on; else { if (on && !input.hand[k]) pressHand(k); input.hand[k] = on; }
 }
 addEventListener('keydown', (e) => { if (e.code in KEYS) { e.preventDefault(); if (!e.repeat) setInput(KEYS[e.code], true); } else if (e.code === 'Escape') game.pause(); });
@@ -187,6 +189,7 @@ for (const [id, k] of [['bL', 0], ['bR', 1], ['bSprint', 'sprint']]) {
   for (const ev of ['pointerup', 'pointercancel']) el.addEventListener(ev, () => setInput(k, false));
 }
 addEventListener('contextmenu', (e) => e.preventDefault());
+renderer.domElement.addEventListener('pointerdown', () => { if (game.state === 'duel' && !game.bot) duelTap(); });
 
 // ------------------------------------------------------------ 界面小部件（全部按游戏时间驱动，方便逐帧录像）
 const ui = { popT: 9, bubbleT: 9, bigT: 9, bigDur: 1, tipT: 9, flash: 0 };
@@ -241,6 +244,7 @@ function doTear(h) {
   burst(H.from, 7 + Math.floor(energy * 4), tmpV.subVectors(camera.position, H.from).normalize());
   sfx.rip(Math.min(1.4, energy)); game.shake = 0.03; game.slow = 0.09; ui.flash = 0.5;
   game.tears++;
+  game.power = Math.min(1, game.power + 0.085 * (1 + 0.08 * Math.min(6, game.combo - 1)));
   girl.react('tear');
   pop(game.combo >= 3 ? `左右开弓 ×${game.combo}！` : chain ? '顺着撕！' : '嘶啦！');
 }
@@ -253,6 +257,23 @@ const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _toCam = new THR
 function updateHands(dt, time) {
   const fwd = camera.getWorldDirection(_fwd), right = _right.crossVectors(fwd, camera.up).normalize();
   const up = camera.up, lv = game.lv, playing = game.state === 'play';
+  if (game.state === 'duel' || game.state === 'win' || game.state === 'lose') { // 演出：双手不再各追各的腿
+    const L = hands[0], R = hands[1], d = game.duel;
+    if (game.state === 'duel' && (d.phase === 'in' || d.phase === 'tug')) {
+      const leg = legs[0], g = leg.grabbed;
+      if (g) { leg.restToWorld(g.c, g.target, R.pos); R.snap = 40; }
+      else { const a = d.cell, a3 = a * 3; leg.restToWorld(a, tmpV.set(leg.p0[a3], leg.p0[a3 + 1], leg.p0[a3 + 2]), R.pos); R.pos.addScaledVector(fwd, -0.12 * (1 - smooth(d.t / 0.9))); R.snap = 10; }
+      R.pinch = g ? 1 : 0.3; L.pos.copy(R.pos).addScaledVector(right, -0.075).addScaledVector(up, -0.055).addScaledVector(fwd, -0.02); L.pinch = R.pinch; L.snap = R.snap;
+    } else if (game.state === 'lose') { // 力竭趴地：两只手摊在地板上
+      R.pos.set(camera.position.x + 0.1, 0.1 + Math.sin(time * 1.3) * 0.012, camera.position.z - 0.62); L.pos.set(camera.position.x - 0.26, 0.05, camera.position.z - 0.42); // 右手还不死心地朝她的鞋尖够
+      R.pinch = L.pinch = 0.12; R.snap = L.snap = 5;
+    } else { // 撕完了：手收回来
+      for (const H of hands) { const sg = H.i ? 1 : -1; H.pos.copy(camera.position).addScaledVector(right, sg * 0.24).addScaledVector(fwd, 0.3); H.pos.y -= 0.42 - 0.02 * Math.sin(time * 2 + H.i); H.pinch = 0.6; H.snap = 6; }
+      if (game.state === 'duel' && d.phase === 'rip') { R.pos.copy(d.from).addScaledVector(fwd, -0.28 * smooth(d.t / 0.5)).addScaledVector(up, 0.08); R.pinch = 1; R.snap = 20; }
+    }
+    man.update(dt, camera, hands[0], hands[1], time);
+    return;
+  }
   for (const H of hands) {
     const h = H.i, sgn = h ? 1 : -1, leg = legs[h];
     H.t += dt;
@@ -318,7 +339,23 @@ function updateCamera(dt, time) {
     _ip.set(lerp(0.34, -0.12, a), lerp(0.3, 1.22, a), lerp(1.0, 1.55, a)); _il.set(0, lerp(0.35, 1.05, a), 0);
     pos = _ip.lerp(_gp, b); look = _il.lerp(_gl, b); fov = lerp(52, g.fov, b); roll = lerp(Math.sin(t * 2.2) * 0.02, g.roll, b);
   }
-  const k = 1 - Math.exp(-dt * 14);
+  let rate = 14;
+  const gx = girlRoot.position.x, br = Math.sin(time * 1.7);
+  if (game.state === 'duel') { // 拼力气：越绷越贴近小腿；撕开的一瞬间怼上去；认输时拉远
+    const d = game.duel, T = smooth((d.T - 0.45) / 0.5); rate = 7;
+    if (d.phase === 'in') { _ip.set(gx + 0.3, 1.05, 1.9); _il.set(gx, 0.9, 0.05); fov = 60; rate = 5; }                // 先给个全身：她回身站定
+    else if (d.phase === 'tug') { _ip.set(gx + lerp(0.3, 0.72, T) + br * 0.01, lerp(0.95, 0.56, T), lerp(1.22, 0.74, T)); _il.set(gx + 0.05, lerp(0.8, 0.41, T), lerp(0.1, 0.24, T)); fov = lerp(70, 46, T); } // 越绷越绕到侧面贴近，看得清布面被拉起的轮廓
+    else if (d.phase === 'rip') { _ip.set(gx + 0.62, 0.52, 0.86); _il.set(gx + 0.13, 0.4, 0.26); fov = 44; rate = 10; }
+    else if (d.phase === 'sit') { _ip.set(gx + 0.32, 1.2, 1.75); _il.set(gx, 0.42, 0); fov = 54; rate = 4; }
+    else { _ip.copy(_gp); _il.copy(_gl); rate = 5; }
+    pos = _ip; look = _il; roll = br * 0.006;
+  } else if (game.state === 'win') { _ip.set(gx + 0.32 + br * 0.01, 1.2, 1.75); _il.set(gx, 0.42, 0); pos = _ip; look = _il; fov = 54; roll = br * 0.004; rate = 4; }
+  else if (game.state === 'lose') { // 趴在地上，视线从她的鞋尖慢慢抬到脸上
+    const a = smooth((game.resT - 0.5) / 1.6);
+    _ip.set(0.1, lerp(0.9, 0.25, smooth(game.resT / 0.5)) + br * 0.006, 1.16); _il.set(0.02, lerp(0.0, 0.64, a), 0.05);
+    pos = _ip; look = _il; fov = 80; roll = lerp(0.1, 0.02, a) + br * 0.004; rate = 6;
+  }
+  const k = 1 - Math.exp(-dt * rate);
   camState.pos.lerp(pos, camState.n ? k : 1); camState.look.lerp(look, camState.n ? k : 1); camState.fov += (fov - camState.fov) * (camState.n ? k : 1); camState.n++;
   camera.position.copy(camState.pos);
   camera.position.x += (Math.random() - 0.5) * game.shake * save.shake; camera.position.y += (Math.random() - 0.5) * game.shake * save.shake;
@@ -332,20 +369,25 @@ function updateCamera(dt, time) {
 // ------------------------------------------------------------ 游戏状态
 const game = {
   state: 'load', level: 0, lv: LEVELS[0], t: 0, clock: 0, time: 0, broken: 0, gap: 2.4, stamina: 1, sprintK: 0, sprinting: false, winded: false, view: 0, pPhase: 0, dist: 0,
-  combo: 0, lastHand: -1, lastTear: -9, tears: 0, shake: 0, slow: 0, bot: query.has('bot'), tipDone: {}, paused: false, tick: 0, resT: 0,
+  combo: 0, lastHand: -1, lastTear: -9, tears: 0, shake: 0, slow: 0, bot: query.has('bot'), tipDone: {}, paused: false, tick: 0, resT: 0, power: 0, bonus: 0, scale: 1,
+  duel: { phase: 'none', t: 0, T: 0, cell: 0, from: new THREE.Vector3(), ladder: 0, botTap: 0, botLazy: false },
 
   startLevel(i, fullIntro = false) {
     this.level = clamp(i, 0, LEVELS.length - 1); const lv = this.lv = LEVELS[this.level], st = STYLE[lv.style];
     shared.uFabricColor.value.set(st.color); shared.uSheenColor.value.set(st.sheen); shared.uDensity.value = st.dens * lv.thick; shared.uNet.value = st.net ? 1 : 0;
-    world.setPalette(lv.sky, shared); sfx.sound.on = save.sfx;
+    world.setTheme(lv.scene, lv.mood, shared); sfx.sound.on = save.sfx;
     legs.forEach((l) => l.reset()); hands.forEach((H) => { H.state = 'idle'; H.tension = 0; });
     girl.setStyle(lv.run); girl.setRunning(false); girl.c.yaw.x = girl.c.yaw.t = 0; girl.c.run.x = 0; girl.c.x.x = 0; girl.c.wave.t = 1;
-    girl.faceT.angry = 0; girl.faceT.happy = 0.4;
+    girl.faceT.angry = 0; girl.faceT.happy = 0.4; girl.faceT.sad = 0; girl.faceT.surprised = 0; girl.lids = 0;
+    for (const ch of ['duel', 'sit', 'scorn', 'tug']) { girl.c[ch].t = 0; girl.c[ch].x = 0; girl.c[ch].v = 0; }
+    this.power = 0; this.bonus = 0; this.duel.phase = 'none'; this.scale = 1; params.pinchRadius = 0.016;
     this.time = lv.time; this.broken = 0; this.gap = 1.6; this.stamina = 1; this.combo = 0; this.lastHand = -1; this.lastTear = -9; this.tears = 0; this.view = 0; this.sprintK = 0; this.winded = false;
     input.sprint = false; input.hand = [false, false];
     this.state = 'intro'; this.t = fullIntro ? 0 : 1.0; this.paused = false; camState.n = 0;
+    girl.update(0); vrm.update(0); scene.updateMatrixWorld(true); skirt.reset();
     for (const id of ['result', 'menu']) $(id).classList.add('hidden');
     for (const id of ['hud', 'pad', 'stam']) $(id).classList.remove('hidden');
+    $('tug').classList.add('hidden');
     $('lvname').textContent = `${lv.name}　${lv.sub}`; $('prog').querySelector('.goal').style.left = lv.goal * 100 + '%';
     if (fullIntro) big('撕袜大作战', '肥鱼快跑', 1.7); else big(lv.name, lv.sub, 1.0);
     girl.later(0.35, () => say('来抓我呀～'));
@@ -359,6 +401,9 @@ const game = {
     $('combo').textContent = this.combo >= 2 ? `连撕 ×${this.combo}` : '';
     $('stam').firstElementChild.style.width = this.stamina * 100 + '%'; $('stam').classList.toggle('low', this.stamina < 0.2);
     $('fx-lines').style.opacity = this.sprintK * 0.9;
+    $('power').firstElementChild.style.width = this.power * 100 + '%'; $('power').classList.toggle('full', this.power >= 1);
+    const inTug = this.state === 'duel' && this.duel.phase === 'tug'; $('tug').classList.toggle('hidden', !inTug);
+    if (inTug) $('tug').querySelector('i').style.width = clamp(this.duel.T, 0, 1) * 100 + '%';
     const near = this.view > 0.55 && this.state === 'play';
     [$('bL'), $('bR')].forEach((el, h) => { el.classList.toggle('hot', near && hands[h].state === 'idle' && girl.kick(h) > this.lv.win); el.classList.toggle('down', input.hand[h]); });
     $('bSprint').classList.toggle('down', this.sprinting);
@@ -372,7 +417,61 @@ const game = {
     $('resText').textContent = won ? `破碎 ${(this.broken * 100).toFixed(0)}%，还剩 ${this.time.toFixed(1)} 秒，一共撕了 ${this.tears} 下。` : `只撕到 ${(this.broken * 100).toFixed(0)}%，目标是 ${Math.round(this.lv.goal * 100)}%。`;
     $('resNext').textContent = won ? (last ? '从头再来' : '下 一 关') : '再 追 一 次';
     $('resNext').onclick = () => this.startLevel(won ? (last ? 0 : this.level + 1) : this.level);
-    if (won) { sfx.win(); big('撕完收工！', '', 1.3); girl.faceT.angry = 0.6; say('赔我十双！'); } else { sfx.lose(); girl.react('taunt'); }
+    this.scale = 1; this.duel.phase = 'none';
+    for (const id of ['pad', 'stam']) $(id).classList.add('hidden');
+    girl.setRunning(false);
+    if (won) { // 认输：一屁股坐地上，气鼓鼓
+      sfx.win(); big('撕完收工！', '', 1.3); girl.c.duel.t = 0; girl.c.sit.t = 1; girl.faceT.angry = 0.7; girl.faceT.happy = 0; girl.faceT.surprised = 0; say('不玩了！赔我十双！');
+    } else { // 你力竭趴下，她侧过身叉着腰，低头斜你一眼
+      sfx.lose(); girl.c.yaw.t = 0.75; girl.c.scorn.t = 1; girl.c.headYaw.t = -0.55; girl.faceT.angry = 0.35; girl.faceT.happy = 0; girl.lids = 0.5;
+      girl.later(1.3, () => say('就这？'));
+    }
+  },
+  // ---------- 大成功：气力槽攒满 → 慢放 → 她回身拽住袜口跟你拔河，狂点屏幕拼力气
+  startDuel() {
+    const d = this.duel, leg = legs[0];
+    this.state = 'duel'; d.phase = 'in'; d.t = 0; d.T = 0.42; d.ladder = 0; d.botTap = 0; this.power = 1; input.sprint = false; input.hand = [false, false];
+    d.cell = Math.round((leg.NV - 1) * 0.6) * leg.NU + Math.round(leg.NU * 0.25); // 左小腿正面
+    girl.setRunning(false); girl.c.duel.t = 1; girl.faceT.angry = 0.5; girl.faceT.happy = 0.25;
+    big('大成功！', '狂点屏幕 · 拼力气', 1.3); ui.tipT = 9; sfx.win(); ui.flash = 0.6; say('想得美！');
+  },
+  duelUpdate(rdt) {
+    const d = this.duel, leg = legs[0], lv = this.lv; d.t += rdt;
+    this.scale = d.phase === 'rip' ? 0.22 : d.phase === 'in' || d.phase === 'tug' ? 0.42 : 1;
+    if (d.phase === 'in' && d.t > 0.9) {
+      params.pinchRadius = 0.024;
+      d.phase = leg.grab(d.cell % leg.NU, Math.floor(d.cell / leg.NU)) ? 'tug' : 'fail'; d.t = 0;
+    } else if (d.phase === 'tug') {
+      if (this.bot) { d.botTap -= rdt; if (d.botTap <= 0) { duelTap(); d.botTap = (d.botLazy ? 0.42 : 0.115) * (0.7 + Math.random() * 0.6); } }
+      d.T -= lv.pullback * (0.75 + 0.5 * Math.sin(d.t * 3.1)) * rdt;         // 她一阵一阵地往回拽
+      girl.c.tug.t = (0.5 - d.T) * 2;
+      const g = leg.grabbed, c3 = g.c * 3, n0 = leg.n0, dist = 0.025 + clamp(d.T, 0, 1.05) * 0.15;
+      leg.drag(tmpV.set(g.origin.x + n0[c3] * dist, g.origin.y + n0[c3 + 1] * dist + dist * 0.15, g.origin.z + n0[c3 + 2] * dist));
+      d.ladder -= rdt; if (d.T > 0.55 && d.ladder <= 0) { leg.ladderAt(g.ci + Math.round((Math.random() - 0.5) * 16), g.cj + Math.round((Math.random() - 0.5) * 30), 0.03 + 0.06 * d.T); d.ladder = 0.32; sfx.tone(900 + Math.random() * 500, 0.03, 'square', 0.03); }
+      const losing = d.T > 0.68; girl.faceT.surprised = losing ? 0.7 : 0; girl.faceT.angry = losing ? 0.1 : 0.5; // 快输了就慌，占上风就得意
+      if (d.T >= 1) { // 撕开了：沿小腿一路崩开
+        leg.restToWorld(g.c, g.target, d.from);
+        const ci = g.ci, cj = g.cj, keep = [params.holeSize, params.runLength]; params.holeSize = 1.7; params.runLength = 2.6;
+        leg.tearAt(ci, cj, 2.0); leg.release();
+        for (const [k, off] of [[1, -46], [2, 38], [3, -86]]) girl.later(0.05 * k, () => { params.holeSize = 1.3; params.runLength = 2.0; leg.tearAt(ci + Math.round((Math.random() - 0.5) * 14), cj + off, 1.5); params.holeSize = keep[0]; params.runLength = keep[1]; });
+        params.holeSize = keep[0]; params.runLength = keep[1]; params.pinchRadius = 0.016;
+        shredMesh.material.color.copy(shared.uFabricColor.value); burst(d.from, 28, tmpV.subVectors(camera.position, d.from).normalize());
+        sfx.rip(1.4); this.shake = 0.05; ui.flash = 1; pop('嘶——啦！！'); this.bonus += 0.14; this.tears++;
+        girl.faceT.surprised = 1; girl.faceT.angry = 0; girl.c.tug.t = -1; d.phase = 'rip'; d.t = 0;
+      } else if (d.T <= 0 || d.t > 9) { // 被她拽回去了
+        leg.release(); params.pinchRadius = 0.016; sfx.snap(); pop('被拽回去了…'); girl.faceT.happy = 1; girl.faceT.angry = 0; girl.faceT.surprised = 0; say('略略略～');
+        girl.c.duel.t = 0; girl.c.tug.t = 0; d.phase = 'fail'; d.t = 0;
+      }
+    } else if (d.phase === 'rip' && d.t > 1.5) {
+      d.phase = 'sit'; d.t = 0; girl.c.duel.t = 0; girl.c.tug.t = 0; girl.c.sit.t = 1; girl.faceT.surprised = 0; girl.faceT.angry = 0.7; girl.faceT.happy = 0; say('哼！赔我十双！');
+      this.broken = (legs[0].zoneRatio() + legs[1].zoneRatio()) / 2 + this.bonus;
+    } else if (d.phase === 'sit' && d.t > 1.9) {
+      if (this.broken >= lv.goal) { this.end(true); return; }
+      girl.c.sit.t = 0; girl.faceT.angry = 0; girl.faceT.happy = 0.4; d.phase = 'out'; d.t = 0; say('再来！抓不到～');
+    } else if ((d.phase === 'out' && d.t > 0.55) || (d.phase === 'fail' && d.t > 0.8)) {
+      this.power = d.phase === 'fail' ? 0.3 : 0; this.gap = d.phase === 'fail' ? 2.3 : 1.9; d.phase = 'none'; this.scale = 1;
+      girl.setRunning(true); this.state = 'play'; this.view = 0; camState.n = 1;
+    }
   },
   pause() {
     if (this.state === 'load') return;
@@ -380,9 +479,10 @@ const game = {
     if (this.paused) buildMenu();
   },
 
-  update(dt) {
+  update(dt, rdt) {
     this.clock += dt; this.t += dt; this.tick++;
     const lv = this.lv;
+    if (this.state === 'duel') this.duelUpdate(rdt);
     if (this.state === 'intro') {
       if (this.t > 1.7 && !girl.running) { girl.setRunning(true); girl.c.wave.t = 0; big('追！', '', 0.8); sfx.tick(); }
       if (this.t > 1.7) this.gap = lerp(1.6, lv.gap, smooth((this.t - 1.7) / 1.2));
@@ -391,8 +491,8 @@ const game = {
     const run = clamp(girl.c.run.x, 0, 1);
     if (this.state === 'win' || this.state === 'lose') { // 结算：镜头留在身后
       this.resT += dt; this.gap += (2.4 - this.gap) * (1 - Math.exp(-dt * 2));
-      if (this.resT > 1.3) $('result').classList.remove('hidden');
-      if (this.bot && this.resT > 3.2 && this.state === 'win' && this.level < LEVELS.length - 1) this.startLevel(this.level + 1);
+      if (this.resT > (this.state === 'lose' ? 3.6 : 2.2)) $('result').classList.remove('hidden');
+      if (this.bot && this.resT > 4.2 && this.state === 'win' && this.level < LEVELS.length - 1) this.startLevel(this.level + 1);
     }
     if (this.state === 'play') {
       if (this.bot) botPlay(dt);
@@ -407,9 +507,10 @@ const game = {
       this.stamina = clamp(this.stamina, 0, 1);
       this.gap = clamp(this.gap + rate * dt, GAP_MIN, GAP_MAX);
       if (this.gap <= GRAB_RANGE && !this.tipDone.grab) { this.tipDone.grab = 1; tip('松开冲刺！看她哪条腿后甩，就按哪只手'); }
-      if (this.tick % 6 === 0) this.broken = (legs[0].zoneRatio() + legs[1].zoneRatio()) / 2;
+      if (this.tick % 6 === 0) this.broken = (legs[0].zoneRatio() + legs[1].zoneRatio()) / 2 + this.bonus;
       this.time -= dt;
       if (this.broken >= lv.goal) this.end(true); else if (this.time <= 0) this.end(false);
+      else if (this.power >= 1 && hands.every((H) => H.state === 'idle')) this.startDuel();
     } else this.sprinting = false;
     this.sprintK += ((this.sprinting ? 1 : 0) - this.sprintK) * (1 - Math.exp(-dt * 7));
     const near = this.state === 'play' && !this.sprinting && this.gap <= GRAB_RANGE + 0.12;
@@ -417,10 +518,16 @@ const game = {
     this.pPhase += dt * Math.PI * lerp(2.7, 3.6, this.sprintK) * (this.state === 'intro' ? run : 1);
     this.dist += dt * lv.speed * run * (1 + 0.25 * this.sprintK);
     for (let h = 0; h < 2; h++) { const u = legs[h].material.uniforms.uHot, on = near && hands[h].state === 'idle' && girl.kick(h) > lv.win; u.value += ((on ? 1 : 0) - u.value) * (1 - Math.exp(-dt * 18)); }
-    const hideTail = this.view > 0.3; for (const o of tailParts) o.visible = !hideTail;
+    const hideTail = this.view > 0.3 && this.state === 'play'; for (const o of tailParts) o.visible = !hideTail;
     this.hud();
   },
 };
+
+function duelTap() {
+  const d = game.duel; if (game.state !== 'duel' || d.phase !== 'tug') return;
+  d.T += game.lv.tap; game.shake = Math.max(game.shake, 0.006); sfx.tone(240 + d.T * 500, 0.04, 'triangle', 0.07);
+  $('tug').classList.remove('hit'); void $('tug').offsetWidth; $('tug').classList.add('hit');
+}
 
 /** 自动游玩（录像 / 演示用）：远了就冲刺，够得着就左右开弓 */
 const bot = { wait: [0, 0] };
@@ -457,9 +564,9 @@ function frame(rawDt, draw = true) {
   frameNo++;
   if (vrm && !game.paused) {
     game.slow = Math.max(0, game.slow - rawDt);
-    const dt = rawDt * (game.slow > 0 ? 0.3 : 1); // 撕破瞬间的顿帧
+    const dt = rawDt * (game.slow > 0 ? 0.3 : 1) * game.scale; // 撕破瞬间的顿帧 + 拼力气时的慢放
     time += dt; shared.uTime.value = time;
-    game.update(dt);
+    game.update(dt, rawDt);
     const run = clamp(girl.c.run.x, 0, 1);
     setWind(run);
     girl.update(dt);
@@ -471,7 +578,7 @@ function frame(rawDt, draw = true) {
     updateHands(dt, time);
     for (const leg of legs) leg.update(dt);
     world.update(game.dist);
-    updateShreds(dt); updateUI(dt);
+    updateShreds(dt); updateUI(rawDt);
   }
   shared.uKeyDir.value.copy(keyDirW).transformDirection(camera.matrixWorldInverse);
   shared.uFillDir.value.copy(fillDirW).transformDirection(camera.matrixWorldInverse);
