@@ -19,7 +19,7 @@ const lerp = (a, b, t) => a + (b - a) * t, clamp = (x, a, b) => Math.min(b, Math
 
 // 布料参数
 const params = {
-  pinchRadius: 0.016, maxPull: 0.2, windowRows: 21, windowCols: 20,
+  pinchRadius: 0.016, maxPull: 0.24, windowRows: 21, windowCols: 20,
   substeps: 1, iterations: 12, stretchK: 0.85, compressK: 0.05, stick: 0.85, press: 0.00013, damping: 0.8, slackDecay: 7,
   tearDist: 0.085, holeSize: 0.82, runLength: 0.9,
 };
@@ -286,16 +286,18 @@ function updateHands(dt, time) {
       else if (!input.hand[h] && H.tension < 1) { dropHand(h, true); pop('没撕动…'); }
       else {
         H.tension += dt / (lv.hold * (1 - Math.min(0.3, (game.combo - 1) * 0.05)));
-        const c3 = g.c * 3, d = Math.min(1.05, H.tension) * params.tearDist * 1.08, n0 = leg.n0;
-        leg.drag(tmpV.set(g.origin.x + n0[c3] * d, g.origin.y + n0[c3 + 1] * d + d * 0.25, g.origin.z + n0[c3 + 2] * d));
+        const T = Math.min(1.05, H.tension), yank = Math.sin(H.t * 34) * 0.012 * T; // 一下一下地往回拽
+        const c3 = g.c * 3, d = 0.03 + 0.17 * smooth(T) + yank, n0 = leg.n0;
+        leg.drag(tmpV.set(g.origin.x + n0[c3] * d, g.origin.y + n0[c3 + 1] * d + d * 0.3, g.origin.z + n0[c3 + 2] * d));
         leg.restToWorld(g.c, g.target, H.pos); H.pinch = 1; H.snap = 40;
         if (H.tension >= 1) doTear(h);
         continue;
       }
     }
     if (H.state === 'recoil') {
-      const k = H.t / 0.2; if (k >= 1) { H.state = 'idle'; H.t = 0; }
-      H.pos.copy(H.from).addScaledVector(fwd, -0.22 * smooth(k)).addScaledVector(up, 0.06 * k).addScaledVector(right, sgn * 0.08 * k); H.pinch = 1 - k * 0.5; H.snap = 30; continue;
+      const k = H.t / 0.32; if (k >= 1) { H.state = 'idle'; H.t = 0; }
+      const e = Math.sin(Math.min(1, k * 1.6) * Math.PI / 2); // 撕开的一瞬间整条胳膊往后甩出去，再慢慢收回
+      H.pos.copy(H.from).addScaledVector(fwd, -0.3 * e).addScaledVector(up, 0.14 * e - 0.1 * k * k).addScaledVector(right, sgn * 0.2 * e); H.pinch = 1 - k * 0.6; H.snap = 34; continue;
     }
     if (H.state === 'miss') {
       const k = H.t / 0.26; if (k >= 1) { H.state = 'idle'; H.t = 0; }
@@ -422,7 +424,7 @@ const game = {
     $('resNext').textContent = won ? (last ? '从头再来' : '下 一 关') : '再 追 一 次';
     $('resNext').onclick = () => this.startLevel(won ? (last ? 0 : this.level + 1) : this.level);
     this.scale = 1; this.duel.phase = 'none';
-    for (const id of ['pad', 'stam']) $(id).classList.add('hidden');
+    for (const id of ['pad', 'stam']) $(id).classList.add('hidden'); ui.tipT = 9;
     girl.setRunning(false);
     if (won) { // 认输：一屁股坐地上，气鼓鼓
       sfx.win(); big('撕完收工！', '', 1.3); girl.c.duel.t = 0; girl.c.sit.t = 1; girl.faceT.angry = 0.7; girl.faceT.happy = 0; girl.faceT.surprised = 0; say('哼，不跟你玩了！');
@@ -436,7 +438,7 @@ const game = {
     const d = this.duel, leg = legs[0];
     this.duels++; this.state = 'duel'; d.phase = 'in'; d.t = 0; d.T = 0.42; d.ladder = 0; d.botTap = 0; this.power = 1; input.sprint = false; input.hand = [false, false];
     d.cell = Math.round((leg.NV - 1) * 0.58) * leg.NU + Math.round(leg.NU * 0.25); // 左小腿正面（坐下伸腿后朝上）
-    d.ankle = Math.round((leg.NV - 1) * 0.42) * leg.NU; // 左手按在膝盖外侧的丝袜上，离镜头远，不挡视线
+    d.ankle = Math.round((leg.NV - 1) * 0.5) * leg.NU + Math.round(leg.NU * 0.06); // 左手按在膝盖外侧的丝袜上，离镜头远，不挡视线
     girl.setRunning(false); girl.c.duel.t = 1; girl.faceT.angry = 0.5; girl.faceT.happy = 0.25;
     girl.c.yaw.k = 190; girl.c.duel.k = 150; // 慢放里弹簧也跟着变慢，转身和摆姿势要加快才来得及
     big('大成功！', '狂点屏幕 · 拼力气', 1.3); ui.tipT = 9; sfx.win(); ui.flash = 0.6; say('想得美！');
@@ -581,6 +583,7 @@ function frame(rawDt, draw = true) {
     vrm.update(dt);
     scene.updateMatrixWorld(true);
     legRefMesh.skeleton.update();
+    skirt.shapeMul = 1 - 0.85 * clamp(Math.max(girl.c.duel.x, girl.c.sit.x), 0, 1);
     updateSkirt(dt, 9 * run);
     updateCamera(dt, time);
     updateHands(dt, time);

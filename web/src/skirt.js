@@ -75,9 +75,9 @@ export class Skirt {
       p[o + 1] += g; p[o + 2] += wz * (0.6 + 0.4 * Math.sin(k * 1.7 + this.gust));
     }
     for (let k = 0; k < SC * 3; k++) p[k] = pp[k] = target[k]; // 腰线钉死
-    for (let it = 0; it < 4; it++) {
+    for (let it = 0; it < 6; it++) {
       for (let r = 1; r < SR; r++) {
-        const shape = 0.10 + 0.18 * (1 - r / (SR - 1)); // 越靠近腰越硬，下摆更自由
+        const shape = (0.10 + 0.18 * (1 - r / (SR - 1))) * (this.shapeMul ?? 1); // 越靠近腰越硬，下摆更自由
         for (let c = 0; c < SC; c++) {
           const a = r * SC + c, o = a * 3;
           for (let q = 0; q < 3; q++) p[o + q] += (target[o + q] - p[o + q]) * shape;

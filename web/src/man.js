@@ -76,7 +76,7 @@ class Arm {
   /** g: 0 = 自然张开，1 = 拇指食指捏紧、其余手指握起 */
   setFingers(g) {
     const open = [[0.1, 0.1, 0.1], [0.25, 0.25, 0.2], [0.3, 0.3, 0.2], [0.35, 0.35, 0.25], [0.4, 0.4, 0.3]];
-    const shut = [[0.55, 0.3, 0.35], [0.85, 0.9, 0.5], [1.25, 1.35, 0.9], [1.3, 1.4, 0.9], [1.3, 1.4, 0.9]];
+    const shut = [[0.7, 0.45, 0.5], [1.25, 1.35, 0.95], [1.35, 1.45, 1.0], [1.4, 1.5, 1.0], [1.4, 1.5, 1.0]]; // 攥成拳：一把抓住布料
     this.bend.forEach((chain, f) => chain.forEach(({ bone, rest, axis }, k) => {
       bone.quaternion.copy(rest).multiply(_q.setFromAxisAngle(axis, open[f][k] + (shut[f][k] - open[f][k]) * g));
     }));
@@ -169,12 +169,12 @@ export class Man {
       const over = arm.solve(arm.aim, dir, V().copy(right).multiplyScalar(-0.55 * sgn).addScaledVector(up, -0.8), V().copy(right).multiplyScalar(0.7 * sgn).addScaledVector(up, -0.7), arm.curl);
       if (over > worst) { worst = over; pull.subVectors(arm.target, sh).normalize(); }
       // 实际的捏合点 = 拇指尖和食指尖的中点；把它和目标的差慢慢补回去
-      const pinchPt = arm.fingers[0][2].getWorldPosition(V()).lerp(arm.fingers[1][2].getWorldPosition(V()), 0.5);
-      arm.corr.add(V().subVectors(arm.target, pinchPt).multiplyScalar(0.5)).clampLength(0, 0.12);
+      const pinchPt = arm.fingers[0][2].getWorldPosition(V()).lerp(arm.fingers[1][1].getWorldPosition(V()), 0.5);
+      arm.corr.add(V().subVectors(arm.target, pinchPt).multiplyScalar(0.6)).clampLength(0, 0.2); arm.err = pinchPt.distanceTo(arm.target);
     }
     this.first = false;
     // 够不着就探身
     const want = pull.multiplyScalar(Math.min(0.3, Math.max(0, worst + 0.03)));
-    this.leanOff.lerp(want.add(this.leanOff), 1 - Math.exp(-dt * 10)).multiplyScalar(worst < -0.05 ? 0.92 : 1).clampLength(0, 0.26); // 探太多上衣会怼到镜头前
+    this.leanOff.lerp(want.add(this.leanOff), 1 - Math.exp(-dt * 10)).multiplyScalar(worst < -0.05 ? 0.92 : 1).clampLength(0, 0.34); // 探太多上衣会怼到镜头前
   }
 }
