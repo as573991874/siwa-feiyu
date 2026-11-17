@@ -79,7 +79,8 @@ npm run dev
 | `src/legfit.js` `src/shaders.js` `src/skirt.js` `src/audio.js` | 腿部网格拟合、着色器、百褶裙、合成音效 |
 | `verify.mjs` | 无头 Chrome 逐帧截图：`node verify.mjs <关卡号> run|duel|lose` |
 | `timing.mjs` | 用自动玩家跑完六关，输出用时与大成功次数 |
-| `record.mjs` | 逐帧录制自动游玩视频：`node record.mjs preview/gameplay.mp4` |
+| `trailer/` | 宣传片：`voices.py` 用 edge-tts 合成台词，`bgm.py` 程序合成原创芯片风 BGM 与音效，`edit.py` 按录屏事件时间轴剪片、对齐配音、混音（产物在 `trailer/out/`，不入库） |
+| `record.mjs` | 逐帧录制自动游玩视频并输出事件时间轴：`node record.mjs preview/full.mp4` → `full.events.json`；再 `python trailer/edit.py preview/full.mp4 preview/trailer.mp4` 剪成宣传片 |
 
 网址参数：`?level=3` 直接进第 3 关，`?bot` 自动游玩，`?manual` 逐帧推进（验证 / 录像用）。
 

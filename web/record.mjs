@@ -11,6 +11,8 @@ p.on('pageerror', (e) => console.log('[pageerror]', e.message));
 await p.goto('http://localhost:5199/?manual&bot', { waitUntil: 'load', timeout: 120000 });
 await p.waitForFunction('window.app && (window.app.ready || window.app.error)', { timeout: 180000 });
 await p.evaluate(() => { app.save.sfx = false; window.__rec = { lazyDone: false, jumped: false, squeezed: false }; });
+import { writeFileSync } from 'node:fs';
+const events = []; let prev = {};
 const t0 = Date.now(); let tail = 0, f = 0;
 for (; f < maxSec * 30; f++) {
   const st = await p.evaluate(() => {
@@ -20,12 +22,17 @@ for (; f < maxSec * 30; f++) {
     if (g.level === 2 && g.state === 'win' && g.resT > 3.9 && !r.jumped) { r.jumped = true; g.startLevel(5); }
     if (r.jumped && g.state === 'play' && !r.squeezed) { r.squeezed = true; g.time = 7; }
     app.step(2);
-    return { s: g.state, lv: g.level, ph: g.duel.phase };
+    return { s: g.state, lv: g.level, ph: g.duel.phase, tears: g.tears, sprint: g.sprinting, combo: g.combo, broken: +(g.broken * 100).toFixed(1) };
   });
+  const vt = +(f / 30).toFixed(3);
+  for (const k of ['s', 'lv', 'ph', 'sprint']) if (st[k] !== prev[k]) events.push({ t: vt, type: k, v: st[k] });
+  if (st.tears > (prev.tears ?? 0)) events.push({ t: vt, type: 'tear', v: st.tears, combo: st.combo });
+  prev = st;
   const shot = await p.screenshot({ type: 'jpeg', quality: 90 });
   if (!ff.stdin.write(shot)) await new Promise((r) => ff.stdin.once('drain', r));
   if (f % 150 === 0) console.log(`frame ${f} (${(f / 30).toFixed(0)}s) level ${st.lv + 1} ${st.s} ${st.ph}  ${((Date.now() - t0) / 1000).toFixed(0)}s elapsed`);
   if (st.s === 'lose') { if (++tail > 190) break; } // 失败演出 + 结算留够 6 秒多
 }
 ff.stdin.end(); await new Promise((r) => ff.on('close', r)); await b.close();
+writeFileSync(out.replace(/\.mp4$/, '.events.json'), JSON.stringify(events, null, 1));
 console.log(`done: ${out}, ${f} frames, ${(f / 30).toFixed(1)}s of video, took ${((Date.now() - t0) / 1000).toFixed(0)}s`);

@@ -1,0 +1,994 @@
+[
+ {
+  "t": 0,
+  "type": "s",
+  "v": "intro"
+ },
+ {
+  "t": 0,
+  "type": "lv",
+  "v": 0
+ },
+ {
+  "t": 0,
+  "type": "ph",
+  "v": "none"
+ },
+ {
+  "t": 0,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 2.967,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 2.967,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 3.833,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 4.267,
+  "type": "tear",
+  "v": 1,
+  "combo": 1
+ },
+ {
+  "t": 4.533,
+  "type": "tear",
+  "v": 2,
+  "combo": 2
+ },
+ {
+  "t": 5.133,
+  "type": "tear",
+  "v": 3,
+  "combo": 3
+ },
+ {
+  "t": 5.7,
+  "type": "tear",
+  "v": 4,
+  "combo": 4
+ },
+ {
+  "t": 6.267,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 6.3,
+  "type": "tear",
+  "v": 5,
+  "combo": 5
+ },
+ {
+  "t": 6.467,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 6.833,
+  "type": "tear",
+  "v": 6,
+  "combo": 6
+ },
+ {
+  "t": 7.433,
+  "type": "tear",
+  "v": 7,
+  "combo": 7
+ },
+ {
+  "t": 8.033,
+  "type": "tear",
+  "v": 8,
+  "combo": 8
+ },
+ {
+  "t": 8.433,
+  "type": "s",
+  "v": "duel"
+ },
+ {
+  "t": 8.433,
+  "type": "ph",
+  "v": "in"
+ },
+ {
+  "t": 9.333,
+  "type": "ph",
+  "v": "tug"
+ },
+ {
+  "t": 11.767,
+  "type": "ph",
+  "v": "rip"
+ },
+ {
+  "t": 11.767,
+  "type": "tear",
+  "v": 9,
+  "combo": 8
+ },
+ {
+  "t": 13.267,
+  "type": "ph",
+  "v": "sit"
+ },
+ {
+  "t": 15.2,
+  "type": "ph",
+  "v": "out"
+ },
+ {
+  "t": 15.767,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 15.767,
+  "type": "ph",
+  "v": "none"
+ },
+ {
+  "t": 15.767,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 16.433,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 16.767,
+  "type": "tear",
+  "v": 10,
+  "combo": 1
+ },
+ {
+  "t": 17.367,
+  "type": "tear",
+  "v": 11,
+  "combo": 2
+ },
+ {
+  "t": 17.967,
+  "type": "tear",
+  "v": 12,
+  "combo": 3
+ },
+ {
+  "t": 18.533,
+  "type": "tear",
+  "v": 13,
+  "combo": 4
+ },
+ {
+  "t": 18.933,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 19.1,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 19.133,
+  "type": "tear",
+  "v": 14,
+  "combo": 5
+ },
+ {
+  "t": 19.667,
+  "type": "tear",
+  "v": 15,
+  "combo": 6
+ },
+ {
+  "t": 20.267,
+  "type": "tear",
+  "v": 16,
+  "combo": 7
+ },
+ {
+  "t": 20.467,
+  "type": "s",
+  "v": "win"
+ },
+ {
+  "t": 24.667,
+  "type": "s",
+  "v": "intro"
+ },
+ {
+  "t": 24.667,
+  "type": "lv",
+  "v": 1
+ },
+ {
+  "t": 26.7,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 26.7,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 27.833,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 28.433,
+  "type": "tear",
+  "v": 1,
+  "combo": 1
+ },
+ {
+  "t": 29.1,
+  "type": "tear",
+  "v": 2,
+  "combo": 2
+ },
+ {
+  "t": 29.767,
+  "type": "tear",
+  "v": 3,
+  "combo": 3
+ },
+ {
+  "t": 29.867,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 30.033,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 30.433,
+  "type": "tear",
+  "v": 4,
+  "combo": 4
+ },
+ {
+  "t": 31,
+  "type": "tear",
+  "v": 5,
+  "combo": 5
+ },
+ {
+  "t": 31.667,
+  "type": "tear",
+  "v": 6,
+  "combo": 6
+ },
+ {
+  "t": 32.067,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 32.233,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 32.333,
+  "type": "tear",
+  "v": 7,
+  "combo": 7
+ },
+ {
+  "t": 32.9,
+  "type": "tear",
+  "v": 8,
+  "combo": 8
+ },
+ {
+  "t": 33.3,
+  "type": "s",
+  "v": "duel"
+ },
+ {
+  "t": 33.3,
+  "type": "ph",
+  "v": "in"
+ },
+ {
+  "t": 34.2,
+  "type": "ph",
+  "v": "tug"
+ },
+ {
+  "t": 37.3,
+  "type": "ph",
+  "v": "rip"
+ },
+ {
+  "t": 37.3,
+  "type": "tear",
+  "v": 9,
+  "combo": 8
+ },
+ {
+  "t": 38.8,
+  "type": "ph",
+  "v": "sit"
+ },
+ {
+  "t": 40.733,
+  "type": "ph",
+  "v": "out"
+ },
+ {
+  "t": 41.3,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 41.3,
+  "type": "ph",
+  "v": "none"
+ },
+ {
+  "t": 41.3,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 41.967,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 42.4,
+  "type": "tear",
+  "v": 10,
+  "combo": 1
+ },
+ {
+  "t": 43.2,
+  "type": "tear",
+  "v": 11,
+  "combo": 2
+ },
+ {
+  "t": 43.867,
+  "type": "tear",
+  "v": 12,
+  "combo": 3
+ },
+ {
+  "t": 44,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 44.167,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 44.567,
+  "type": "tear",
+  "v": 13,
+  "combo": 4
+ },
+ {
+  "t": 45.1,
+  "type": "tear",
+  "v": 14,
+  "combo": 5
+ },
+ {
+  "t": 45.767,
+  "type": "tear",
+  "v": 15,
+  "combo": 6
+ },
+ {
+  "t": 46.2,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 46.367,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 46.433,
+  "type": "tear",
+  "v": 16,
+  "combo": 7
+ },
+ {
+  "t": 47.033,
+  "type": "tear",
+  "v": 17,
+  "combo": 8
+ },
+ {
+  "t": 47.433,
+  "type": "s",
+  "v": "duel"
+ },
+ {
+  "t": 47.433,
+  "type": "ph",
+  "v": "in"
+ },
+ {
+  "t": 48.333,
+  "type": "ph",
+  "v": "tug"
+ },
+ {
+  "t": 51.2,
+  "type": "ph",
+  "v": "rip"
+ },
+ {
+  "t": 51.2,
+  "type": "tear",
+  "v": 18,
+  "combo": 8
+ },
+ {
+  "t": 52.733,
+  "type": "ph",
+  "v": "sit"
+ },
+ {
+  "t": 54.633,
+  "type": "s",
+  "v": "win"
+ },
+ {
+  "t": 54.633,
+  "type": "ph",
+  "v": "none"
+ },
+ {
+  "t": 58.833,
+  "type": "s",
+  "v": "intro"
+ },
+ {
+  "t": 58.833,
+  "type": "lv",
+  "v": 2
+ },
+ {
+  "t": 60.867,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 60.867,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 62.133,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 62.633,
+  "type": "tear",
+  "v": 1,
+  "combo": 1
+ },
+ {
+  "t": 62.867,
+  "type": "tear",
+  "v": 2,
+  "combo": 2
+ },
+ {
+  "t": 63.4,
+  "type": "tear",
+  "v": 3,
+  "combo": 3
+ },
+ {
+  "t": 63.933,
+  "type": "tear",
+  "v": 4,
+  "combo": 4
+ },
+ {
+  "t": 64.1,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 64.267,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 64.633,
+  "type": "tear",
+  "v": 5,
+  "combo": 5
+ },
+ {
+  "t": 64.933,
+  "type": "tear",
+  "v": 6,
+  "combo": 6
+ },
+ {
+  "t": 65.467,
+  "type": "tear",
+  "v": 7,
+  "combo": 7
+ },
+ {
+  "t": 66,
+  "type": "tear",
+  "v": 8,
+  "combo": 8
+ },
+ {
+  "t": 66.133,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 66.3,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 66.4,
+  "type": "s",
+  "v": "duel"
+ },
+ {
+  "t": 66.4,
+  "type": "ph",
+  "v": "in"
+ },
+ {
+  "t": 67.3,
+  "type": "ph",
+  "v": "tug"
+ },
+ {
+  "t": 72.4,
+  "type": "ph",
+  "v": "fail"
+ },
+ {
+  "t": 73.2,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 73.2,
+  "type": "ph",
+  "v": "none"
+ },
+ {
+  "t": 73.2,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 74.133,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 74.5,
+  "type": "tear",
+  "v": 9,
+  "combo": 1
+ },
+ {
+  "t": 74.933,
+  "type": "tear",
+  "v": 10,
+  "combo": 2
+ },
+ {
+  "t": 75.467,
+  "type": "tear",
+  "v": 11,
+  "combo": 3
+ },
+ {
+  "t": 75.9,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 76,
+  "type": "tear",
+  "v": 12,
+  "combo": 4
+ },
+ {
+  "t": 76.133,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 76.5,
+  "type": "tear",
+  "v": 13,
+  "combo": 5
+ },
+ {
+  "t": 77,
+  "type": "tear",
+  "v": 14,
+  "combo": 6
+ },
+ {
+  "t": 77.533,
+  "type": "tear",
+  "v": 15,
+  "combo": 7
+ },
+ {
+  "t": 77.833,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 78,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 78.067,
+  "type": "tear",
+  "v": 16,
+  "combo": 8
+ },
+ {
+  "t": 78.567,
+  "type": "tear",
+  "v": 17,
+  "combo": 9
+ },
+ {
+  "t": 79.1,
+  "type": "tear",
+  "v": 18,
+  "combo": 10
+ },
+ {
+  "t": 79.667,
+  "type": "tear",
+  "v": 19,
+  "combo": 11
+ },
+ {
+  "t": 79.833,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 80,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 80.067,
+  "type": "s",
+  "v": "duel"
+ },
+ {
+  "t": 80.067,
+  "type": "ph",
+  "v": "in"
+ },
+ {
+  "t": 80.967,
+  "type": "ph",
+  "v": "tug"
+ },
+ {
+  "t": 84.533,
+  "type": "ph",
+  "v": "rip"
+ },
+ {
+  "t": 84.533,
+  "type": "tear",
+  "v": 20,
+  "combo": 11
+ },
+ {
+  "t": 86.033,
+  "type": "ph",
+  "v": "sit"
+ },
+ {
+  "t": 87.967,
+  "type": "ph",
+  "v": "out"
+ },
+ {
+  "t": 88.533,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 88.533,
+  "type": "ph",
+  "v": "none"
+ },
+ {
+  "t": 88.533,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 89.2,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 89.7,
+  "type": "tear",
+  "v": 21,
+  "combo": 1
+ },
+ {
+  "t": 90.367,
+  "type": "tear",
+  "v": 22,
+  "combo": 2
+ },
+ {
+  "t": 90.9,
+  "type": "tear",
+  "v": 23,
+  "combo": 3
+ },
+ {
+  "t": 91,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 91.167,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 91.533,
+  "type": "tear",
+  "v": 24,
+  "combo": 4
+ },
+ {
+  "t": 91.667,
+  "type": "s",
+  "v": "win"
+ },
+ {
+  "t": 95.6,
+  "type": "s",
+  "v": "intro"
+ },
+ {
+  "t": 95.6,
+  "type": "lv",
+  "v": 5
+ },
+ {
+  "t": 97.6,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 97.6,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 99.1,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 99.7,
+  "type": "tear",
+  "v": 1,
+  "combo": 1
+ },
+ {
+  "t": 100.067,
+  "type": "tear",
+  "v": 2,
+  "combo": 2
+ },
+ {
+  "t": 100.433,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 100.567,
+  "type": "tear",
+  "v": 3,
+  "combo": 3
+ },
+ {
+  "t": 100.6,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 101.1,
+  "type": "tear",
+  "v": 4,
+  "combo": 4
+ },
+ {
+  "t": 101.367,
+  "type": "tear",
+  "v": 5,
+  "combo": 5
+ },
+ {
+  "t": 101.867,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 101.9,
+  "type": "tear",
+  "v": 6,
+  "combo": 6
+ },
+ {
+  "t": 102.1,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 102.267,
+  "type": "tear",
+  "v": 7,
+  "combo": 7
+ },
+ {
+  "t": 102.667,
+  "type": "tear",
+  "v": 8,
+  "combo": 8
+ },
+ {
+  "t": 103.1,
+  "type": "tear",
+  "v": 9,
+  "combo": 9
+ },
+ {
+  "t": 103.433,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 103.567,
+  "type": "tear",
+  "v": 10,
+  "combo": 10
+ },
+ {
+  "t": 103.6,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 104.033,
+  "type": "tear",
+  "v": 11,
+  "combo": 11
+ },
+ {
+  "t": 104.433,
+  "type": "tear",
+  "v": 12,
+  "combo": 12
+ },
+ {
+  "t": 104.9,
+  "type": "tear",
+  "v": 13,
+  "combo": 13
+ },
+ {
+  "t": 105.033,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 105.2,
+  "type": "sprint",
+  "v": false
+ },
+ {
+  "t": 105.3,
+  "type": "s",
+  "v": "duel"
+ },
+ {
+  "t": 105.3,
+  "type": "ph",
+  "v": "in"
+ },
+ {
+  "t": 106.2,
+  "type": "ph",
+  "v": "tug"
+ },
+ {
+  "t": 110.333,
+  "type": "ph",
+  "v": "rip"
+ },
+ {
+  "t": 110.333,
+  "type": "tear",
+  "v": 14,
+  "combo": 13
+ },
+ {
+  "t": 111.867,
+  "type": "ph",
+  "v": "sit"
+ },
+ {
+  "t": 113.767,
+  "type": "ph",
+  "v": "out"
+ },
+ {
+  "t": 114.333,
+  "type": "s",
+  "v": "play"
+ },
+ {
+  "t": 114.333,
+  "type": "ph",
+  "v": "none"
+ },
+ {
+  "t": 114.333,
+  "type": "sprint",
+  "v": true
+ },
+ {
+  "t": 114.4,
+  "type": "s",
+  "v": "lose"
+ },
+ {
+  "t": 114.4,
+  "type": "sprint",
+  "v": false
+ }
+]
