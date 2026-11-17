@@ -97,6 +97,18 @@ function updateShreds(dt) {
   shredMesh.instanceMatrix.needsUpdate = true;
 }
 
+// 蛋形单人椅（胜利时她坐进去翘二郎腿）
+const chair = new THREE.Group();
+{
+  const boucle = new THREE.MeshStandardMaterial({ color: 0xf2ece4, roughness: 1 });
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.62), boucle);
+  shell.material.side = THREE.DoubleSide; shell.rotation.x = -Math.PI / 2 - 0.35; shell.scale.set(1, 1, 1.25); shell.position.set(0, 0.62, -0.08); chair.add(shell);
+  const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.34, 0.14, 28), boucle); seat.position.set(0, 0.4, 0.02); seat.scale.z = 1.1; chair.add(seat);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.32, 12), new THREE.MeshStandardMaterial({ color: 0xc8c8cc, metalness: 0.8, roughness: 0.3 })); stem.position.y = 0.17; chair.add(stem);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.03, 28), stem.material); base.position.y = 0.015; chair.add(base);
+  chair.visible = false;
+}
+
 // ------------------------------------------------------------ 角色
 let vrm, girl, girlRoot, man, legs = [], skirt, legRefMesh, joints = [];
 const tailParts = []; // 尾巴和丝带垂在身后，近身视角会把腿全挡住，所以贴近时藏起来
@@ -145,6 +157,8 @@ async function load() {
   skirt = new Skirt(raw('hips'), wp('hips'));
   scene.add(skirt.mesh);
   girl = new Girl(vrm, girlRoot); girl.say = say;
+  legs[0].material.uniforms.uHotColor.value.set('#3fd0ff'); legs[1].material.uniforms.uHotColor.value.set('#ff5d8f');
+  scene.add(chair);
   vrm.scene.traverse((o) => { if (/whale_tail|ribbon_(left|right)_tail/i.test(o.name)) tailParts.push(o); });
   joints = [...(vrm.springBoneManager?.joints || [])].map((j) => ({ j, g: j.settings.gravityPower, d: j.settings.gravityDir.clone() }));
   girl.update(0);
@@ -197,7 +211,23 @@ function say(text) { $('bubble').textContent = text; ui.bubbleT = 0; }
 function pop(text) { $('pop').textContent = text; ui.popT = 0; }
 function big(title, sub = '', dur = 1.2) { const b = $('big'); b.firstElementChild.textContent = title; b.lastElementChild.textContent = sub; b.lastElementChild.style.display = sub ? '' : 'none'; ui.bigT = 0; ui.bigDur = dur; }
 function tip(text) { $('tip').textContent = text; ui.tipT = 0; }
+const marks = [$('mL'), $('mR')];
+function updateMarks() {
+  const show = game.state === 'play' && game.view > 0.4, w = view.clientWidth, h = view.clientHeight;
+  for (let i = 0; i < 2; i++) {
+    const el = marks[i], H = hands[i];
+    if (!show) { el.style.opacity = 0; continue; }
+    const k = girl.kick(i), win = game.lv.win, ready = k > win, fill = ready ? 1 : clamp((k - (win - 0.9)) / 0.9, 0, 1);
+    tmpV.copy(calf[i]); tmpV.y += 0.05; tmpV.project(camera);
+    el.style.left = (tmpV.x * 0.5 + 0.5) * w + 'px'; el.style.top = (-tmpV.y * 0.5 + 0.5) * h + 'px';
+    el.style.opacity = (H.state === 'idle' ? 0.5 + 0.5 * fill : 0.25) * smooth((game.view - 0.4) / 0.3);
+    el.style.transform = `scale(${ready ? 1.25 : 0.8 + 0.2 * fill})`;
+    el.classList.toggle('ready', ready); el.lastElementChild.textContent = ready ? (i ? '右!' : '左!') : (i ? '右' : '左');
+    el.querySelector('.arc').style.strokeDashoffset = 119.4 * (1 - fill);
+  }
+}
 function updateUI(dt) {
+  updateMarks();
   ui.popT += dt; ui.bubbleT += dt; ui.bigT += dt; ui.tipT += dt; ui.flash = Math.max(0, ui.flash - dt * 5);
   const p = $('pop'), a = ui.popT / 0.7;
   p.style.opacity = a < 1 ? Math.min(1, a * 5) * (1 - smooth((a - 0.6) / 0.4)) : 0;
@@ -230,7 +260,7 @@ function pressHand(h) {
     if (spot && legs[h].grab(spot.i, spot.j)) { H.state = 'grab'; H.t = 0; H.tension = 0; sfx.tone(300 + h * 60, 0.05, 'triangle', 0.08); return; }
   }
   H.state = 'miss'; H.t = 0; H.from.copy(calf[h]); game.combo = 0; sfx.tone(180, 0.08, 'sine', 0.07);
-  if (near) { girl.react('miss'); pop('抓空！'); } else tip(game.gap > GRAB_RANGE ? '太远了，先按住冲刺追上去' : '松开冲刺再伸手');
+  if (near) { girl.react('miss'); const other = girl.kick(1 - h) > lv.win - 0.12; pop(other ? `错手！这是${h ? '左' : '右'}腿` : '早了！等腿亮起来'); } else tip(game.gap > GRAB_RANGE ? '太远了，先按住冲刺追上去' : '松开冲刺再伸手');
 }
 function doTear(h) {
   const H = hands[h], leg = legs[h], g = leg.grabbed;
@@ -270,7 +300,8 @@ function updateHands(dt, time) {
       R.pinch = L.pinch = 0.12; R.snap = L.snap = 5;
     } else { // 撕完了：手收回来
       for (const H of hands) { const sg = H.i ? 1 : -1; H.pos.copy(camera.position).addScaledVector(right, sg * 0.24).addScaledVector(fwd, 0.3); H.pos.y -= 0.42 - 0.02 * Math.sin(time * 2 + H.i); H.pinch = 0.6; H.snap = 6; }
-      if (game.state === 'duel' && d.phase === 'rip') { R.pos.copy(d.from).addScaledVector(fwd, -0.28 * smooth(d.t / 0.5)).addScaledVector(up, 0.08); R.pinch = 1; R.snap = 20; }
+      // 撕开时右手往右下方甩开，不挡镜头
+      if (game.state === 'duel' && d.phase === 'rip') { { const k = smooth(d.t / 0.5); R.pos.copy(d.from).addScaledVector(fwd, -0.08 * k).addScaledVector(right, 0.22 * k).addScaledVector(up, -0.16 * k); } R.pinch = 1; R.snap = 20; }
     }
     man.update(dt, camera, hands[0], hands[1], time);
     return;
@@ -327,7 +358,7 @@ function gameplayCam(outPos, outLook, time) {
   const noise = Math.sin(time * 7.3) * 0.5 + Math.sin(time * 12.7 + 1) * 0.3 + Math.sin(time * 19.1 + 2) * 0.2;
   outPos.set(gx * lerp(0.5, 0.85, m) + step * (0.022 + 0.014 * s) * sh + noise * 0.006 * sh,
     lerp(1.5, 0.82, m) + 0.05 * s + Math.abs(Math.cos(game.pPhase)) * amp * 2 * sh,
-    game.gap - 0.3 * m);
+    game.gap + 0.08 * m); // 贴近时别再往前凑：后甩的小腿会直接怼到镜头上
   outLook.set(gx * 0.9 + noise * 0.012 * sh, lerp(0.9, 0.42, m) + Math.sin(game.pPhase * 2 + 0.6) * 0.012 * sh, -0.05);
   return { fov: 66 + 9 * s - 3 * m, roll: (step * (0.012 + 0.014 * s) + noise * 0.005) * sh };
 }
@@ -347,10 +378,10 @@ function updateCamera(dt, time) {
     if (d.phase === 'in') { _ip.set(gx + 0.3, 1.05, 1.9); _il.set(gx, 0.9, 0.05); fov = 60; rate = 5; }                // 先给个全身：她回身站定
     else if (d.phase === 'tug') { _ip.set(gx + lerp(0.32, 0.72, T) + br * 0.01, lerp(0.98, 0.56, T), lerp(1.08, 0.74, T)); _il.set(gx + 0.05, lerp(0.84, 0.41, T), lerp(0.1, 0.24, T)); fov = lerp(74, 46, T); } // 越绷越绕到侧面贴近，看得清布面被拉起的轮廓
     else if (d.phase === 'rip') { _ip.set(gx + 0.62, 0.52, 0.86); _il.set(gx + 0.13, 0.4, 0.26); fov = 44; rate = 10; }
-    else if (d.phase === 'sit') { _ip.set(gx + 0.32, 1.2, 1.75); _il.set(gx, 0.42, 0); fov = 54; rate = 4; }
+    else if (d.phase === 'sit') { _ip.set(gx + 0.45, 1.05, 1.85); _il.set(gx, 0.62, 0); fov = 56; rate = 4; }
     else { _ip.copy(_gp); _il.copy(_gl); rate = 5; }
     pos = _ip; look = _il; roll = br * 0.006;
-  } else if (game.state === 'win') { _ip.set(gx + 0.32 + br * 0.01, 1.2, 1.75); _il.set(gx, 0.42, 0); pos = _ip; look = _il; fov = 54; roll = br * 0.004; rate = 4; }
+  } else if (game.state === 'win') { _ip.set(gx + 0.45 + br * 0.01, 1.05, 1.85); _il.set(gx, 0.62, 0); pos = _ip; look = _il; fov = 54; roll = br * 0.004; rate = 4; }
   else if (game.state === 'lose') { // 趴在地上，视线从她的鞋尖慢慢抬到脸上
     const a = smooth((game.resT - 0.5) / 1.6);
     _ip.set(0.1, lerp(0.9, 0.25, smooth(game.resT / 0.5)) + br * 0.006, 1.16); _il.set(0.02, lerp(0.0, 0.64, a), 0.05);
@@ -423,7 +454,7 @@ const game = {
     for (const id of ['pad', 'stam']) $(id).classList.add('hidden');
     girl.setRunning(false);
     if (won) { // 认输：一屁股坐地上，气鼓鼓
-      sfx.win(); big('撕完收工！', '', 1.3); girl.c.duel.t = 0; girl.c.sit.t = 1; girl.faceT.angry = 0.7; girl.faceT.happy = 0; girl.faceT.surprised = 0; say('不玩了！赔我十双！');
+      sfx.win(); big('撕完收工！', '', 1.3); girl.c.duel.t = 0; girl.c.sit.t = 1; girl.faceT.angry = 0.7; girl.faceT.happy = 0; girl.faceT.surprised = 0; say('哼，不跟你玩了！');
     } else { // 你力竭趴下，她侧过身叉着腰，低头斜你一眼
       sfx.lose(); girl.c.yaw.t = 0.75; girl.c.scorn.t = 1; girl.c.headYaw.t = -0.55; girl.faceT.angry = 0.35; girl.faceT.happy = 0; girl.lids = 0.5;
       girl.later(1.3, () => say('就这？'));
@@ -450,7 +481,7 @@ const game = {
       girl.c.tug.t = (0.5 - d.T) * 2;
       const g = leg.grabbed, c3 = g.c * 3, n0 = leg.n0, dist = 0.025 + clamp(d.T, 0, 1.05) * 0.15;
       leg.drag(tmpV.set(g.origin.x + n0[c3] * dist, g.origin.y + n0[c3 + 1] * dist + dist * 0.15, g.origin.z + n0[c3 + 2] * dist));
-      d.ladder -= rdt; if (d.T > 0.55 && d.ladder <= 0) { leg.ladderAt(g.ci + Math.round((Math.random() - 0.5) * 16), g.cj + Math.round((Math.random() - 0.5) * 30), 0.03 + 0.06 * d.T); d.ladder = 0.32; sfx.tone(900 + Math.random() * 500, 0.03, 'square', 0.03); }
+      d.ladder -= rdt; if (d.T > 0.45 && d.ladder <= 0) { leg.ladderAt(g.ci + Math.round((Math.random() - 0.5) * 22), g.cj + Math.round((Math.random() - 0.5) * 40), 0.04 + 0.08 * d.T); d.ladder = 0.18; sfx.tone(900 + Math.random() * 500, 0.03, 'square', 0.03); }
       const losing = d.T > 0.68; girl.faceT.surprised = losing ? 0.7 : 0; girl.faceT.angry = losing ? 0.1 : 0.5; // 快输了就慌，占上风就得意
       if (d.T >= 1) { // 撕开了：沿小腿一路崩开
         leg.restToWorld(g.c, g.target, d.from);
@@ -522,7 +553,8 @@ const game = {
     this.pPhase += dt * Math.PI * lerp(2.7, 3.6, this.sprintK) * (this.state === 'intro' ? run : 1);
     this.dist += dt * lv.speed * run * (1 + 0.25 * this.sprintK);
     for (let h = 0; h < 2; h++) { const u = legs[h].material.uniforms.uHot, on = near && hands[h].state === 'idle' && girl.kick(h) > lv.win; u.value += ((on ? 1 : 0) - u.value) * (1 - Math.exp(-dt * 18)); }
-    const hideTail = this.view > 0.3 && this.state === 'play'; for (const o of tailParts) o.visible = !hideTail;
+    for (const o of tailParts) o.visible = false;
+    girl.pace = 1 - 0.32 * this.view; // 贴近以后她的步子放慢一点，左右腿看得清
     this.hud();
   },
 };
@@ -582,6 +614,7 @@ function frame(rawDt, draw = true) {
     updateHands(dt, time);
     for (const leg of legs) leg.update(dt);
     world.update(game.dist);
+    const sk = clamp(girl.c.sit.x, 0, 1); chair.visible = sk > 0.02; chair.scale.setScalar(0.6 + 0.4 * sk); chair.position.set(girlRoot.position.x, 0, -0.12);
     updateShreds(dt); updateUI(rawDt);
   }
   shared.uKeyDir.value.copy(keyDirW).transformDirection(camera.matrixWorldInverse);

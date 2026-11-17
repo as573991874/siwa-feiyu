@@ -113,6 +113,7 @@ uniform sampler2D uMask;       // R = 破损, G = 抽丝, B = 松弛褶皱
 uniform vec2 uGrid;            // (NU, NV)
 uniform vec2 uMetric;          // 近似的 (周长, 长度)，单位米
 uniform float uKneeV, uHot;
+uniform vec3 uHotColor;
 uniform float uWeave, uPearl, uPearlScale, uPearlDensity, uPearlRand, uWrinkle, uEdgeNoise, uTime, uNet;
 ${COMMON_FS}
 void main(){
@@ -157,8 +158,10 @@ void main(){
   float densMul = (1.0 - 0.3 * knee) * (1.0 + edge * 2.6) * (1.0 + slack * 0.22 * wr);
   densMul *= 1.0 + 0.16 * uWeave * weave * wfade + (n1 - 0.5) * 0.12;
   float L = smoothstep(0.08, 0.6, m.g + (n2 - 0.5) * 0.25 * step(0.02, m.g));
-  float rung = smoothstep(0.3, 0.7, sin(met.y * 6.2832 / 0.0017 + 2.5 * n1) * 0.5 + 0.5);
-  densMul *= mix(1.0, mix(0.16, 0.85, rung), L * (1.0 - edge));
+  float rung = smoothstep(0.55, 0.8, sin(met.y * 6.2832 / 0.0022 + 2.0 * n1) * 0.5 + 0.5);
+  float runEdge = smoothstep(0.15, 0.4, m.g) * (1.0 - smoothstep(0.45, 0.75, m.g)); // 脱线两侧被挤在一起的纱线
+  densMul *= mix(1.0, mix(0.08, 1.6, rung), L * (1.0 - edge));
+  densMul *= 1.0 + runEdge * 1.4;
 
   if (uNet > 0.5) { // 渔网：45° 菱形网格，线上很密、网眼里几乎全透
     vec2 nq = vec2(met.x + met.y, met.x - met.y) / (0.4 / 36.0);
@@ -182,7 +185,7 @@ void main(){
 
   // 这条腿现在够得着：边缘泛一圈暖光
   float hot = uHot * pow(1.0 - clamp(abs(dot(N, V)), 0.0, 1.0), 2.0);
-  col += vec3(1.0, 0.45, 0.6) * hot * 0.9;
+  col += uHotColor * hot * 0.7;
   gl_FragColor = vec4(col, min(1.0, fab.a + hot * 0.25));
   #include <colorspace_fragment>
 }
@@ -197,6 +200,7 @@ export function makeStockingMaterial(shared, maskTex, fit, kneeV) {
       uMetric: { value: new THREE.Vector2(0.4, fit.yTop - fit.yBot) },
       uKneeV: { value: kneeV },
       uHot: { value: 0 },
+      uHotColor: { value: new THREE.Color(1.0, 0.45, 0.6) },
     },
     defines: { HAS_STRETCH: 1 },
     vertexShader: SKIN_VS,

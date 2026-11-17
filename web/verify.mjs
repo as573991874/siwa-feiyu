@@ -19,6 +19,15 @@ if (mode === 'duel') {
   await snap(200, 'play'); await p.evaluate(() => { app.game.power = 1; });
   for (const n of [20, 30, 30, 40, 40, 40, 40, 40, 40, 40, 40, 40, 50, 60, 60]) await snap(n, 'duel');
 }
+if (mode === 'marks') { // 关掉自动玩家，只冲到近身，看左右标记
+  await snap(200, 'play'); await p.evaluate(() => { app.game.bot = false; app.input.sprint = true; app.hands.forEach((h) => { h.state = 'idle'; }); });
+  await snap(40, 'sprint'); await p.evaluate(() => { app.input.sprint = false; });
+  for (const n of [30, 7, 7, 7, 7, 7]) await snap(n, 'near');
+}
+if (mode === 'win') {
+  await snap(260, 'play'); await p.evaluate(() => { app.game.bonus = 1; });
+  for (const n of [12, 30, 40, 50, 60, 80]) await snap(n, 'win');
+}
 if (mode === 'lose') {
   await snap(260, 'play'); await p.evaluate(() => { app.game.time = 0.05; });
   for (const n of [10, 30, 40, 50, 60, 60, 80]) await snap(n, 'lose');

@@ -43,7 +43,9 @@ export class Girl {
     this.style = { ...STYLES.jog }; this.styleT = STYLES.jog;
     this.phase = 0; this.t = 0; this.timers = []; this.nextLook = 3; this.blinkT = 2; this.blink = 0;
     this.face = { happy: 0.4, surprised: 0, angry: 0, sad: 0 }; this.faceT = { happy: 0.4, surprised: 0, angry: 0, sad: 0 }; this.lids = 0;
-    this.say = null; this.running = false;
+    this.say = null; this.running = false; this.pace = 1;
+    this.fingers = { left: [], right: [] };
+    for (const side of ['left', 'right']) for (const f of ['Index', 'Middle', 'Ring', 'Little']) for (const seg of ['Proximal', 'Intermediate', 'Distal']) { const n = H.getNormalizedBoneNode(side + f + seg); if (n) this.fingers[side].push(n); }
   }
   later(sec, fn) { this.timers.push({ at: this.t + sec, fn }); }
   setStyle(name) { this.styleT = STYLES[name] || STYLES.jog; }
@@ -71,7 +73,7 @@ export class Girl {
     for (const k in s) s[k] += (this.styleT[k] - s[k]) * (1 - Math.exp(-dt * 3));
     for (const k in c) c[k].step(dt);
     const run = Math.max(0, Math.min(1, c.run.x));
-    this.phase = (this.phase + dt * Math.PI * s.cadence * run) % (Math.PI * 2);
+    this.phase = (this.phase + dt * Math.PI * s.cadence * run * this.pace) % (Math.PI * 2);
     if (this.running && t > this.nextLook) { this.react('taunt'); this.nextLook = t + (2.5 + Math.random() * 3) / Math.max(0.1, s.look * 4); }
     c.x.t = this.running ? Math.sin(t * 1.15) * s.zig + Math.sin(t * 0.53 + 1) * s.zig * 0.4 : 0;
 
@@ -92,20 +94,23 @@ export class Girl {
       b.leftUpperLeg.rotation.x += (-0.62 + 0.1 * tg) * du; b.leftLowerLeg.rotation.x += 0.12 * du; b.leftFoot.rotation.x += 0.35 * du;
       b.rightUpperLeg.rotation.x += (0.3 - 0.1 * tg) * du; b.rightLowerLeg.rotation.x += 0.45 * du; b.rightFoot.rotation.x += -0.3 * du;
     }
-    if (sit > 0.001) { // 认输：鸭子坐，小腿折在身体两侧
-      for (const [pre, sg] of [['left', -1], ['right', 1]]) { b[pre + 'UpperLeg'].rotation.set(-1.42 * sit, 0, sg * 0.2 * sit); b[pre + 'LowerLeg'].rotation.set(2.45 * sit, 0, 0); b[pre + 'Foot'].rotation.set(0.7 * sit, 0, 0); }
+    if (sit > 0.001) { // 坐进椅子里翘二郎腿：左腿垂下着地，右腿搭在左膝上，脚尖绷直
+      const k = Math.min(1, sit), swing = Math.sin(t * 2.1) * 0.05 * k; // 翘着的那只脚闲闲地晃
+      b.leftUpperLeg.rotation.set(-1.45 * k, 0.05 * k, -0.06 * k); b.leftLowerLeg.rotation.set(1.3 * k, 0, 0); b.leftFoot.rotation.set(0.2 * k, 0, 0);
+      b.rightUpperLeg.rotation.set(-1.72 * k, -0.18 * k, 0.36 * k); b.rightLowerLeg.rotation.set((0.95 + swing) * k, 0, 0); b.rightFoot.rotation.set(0.55 * k, 0, 0);
     }
     if (sc > 0.001) { b.leftUpperLeg.rotation.x += -0.22 * sc; b.leftFoot.rotation.x += 0.2 * sc; b.rightUpperLeg.rotation.z += 0.06 * sc; }
     // --- 躯干：每步落地时下沉，蹦跳跑时腾空更高
     const bounce = Math.abs(Math.sin(ph)) * s.bounce * (1 + s.skip * 0.8 * (0.5 + 0.5 * Math.sin(ph * 0.5 + 1))) * run;
     b.hips.position.set(this.hipsRest.x + sway * 0.012 * idle, this.hipsRest.y - 0.03 * run + bounce + Math.max(0, c.hop.x) * 0.08 - Math.abs(c.stumble.x) * 0.02, this.hipsRest.z);
     b.hips.rotation.set(s.lean * run + c.stumble.x * 0.12, 0.14 * sw * run + sway * 0.05 * idle, 0.05 * Math.cos(ph) * run + sway * 0.025 * idle);
-    b.hips.position.y -= 0.07 * du + 0.8 * sit; b.hips.position.z += (-0.1 - 0.07 * tg) * du - 0.12 * sit;
-    b.hips.rotation.x += (0.16 - 0.16 * tg) * du + 0.1 * sit - 0.04 * sc; b.hips.rotation.z += 0.06 * sc;
-    b.spine.rotation.set(s.lean * 0.5 * run + 0.14 * du + 0.12 * sit, -0.2 * sw * run, -0.04 * Math.cos(ph) * run - sway * 0.03 * idle);
+    const sk = Math.min(1, sit);
+    b.hips.position.y -= 0.07 * du + 0.5 * sk; b.hips.position.z += (-0.1 - 0.07 * tg) * du - 0.06 * sk;
+    b.hips.rotation.x += (0.16 - 0.16 * tg) * du - 0.12 * sk - 0.04 * sc; b.hips.rotation.y += -0.18 * sk; b.hips.rotation.z += 0.06 * sc;
+    b.spine.rotation.set(s.lean * 0.5 * run + 0.14 * du + 0.06 * sk, -0.2 * sw * run, -0.04 * Math.cos(ph) * run - sway * 0.03 * idle);
     b.chest.rotation.set(0, -0.1 * sw * run, 0);
     b.neck.rotation.set(-s.lean * 0.6 * run, c.headYaw.x * 0.45, c.headTilt.x * 0.4);
-    b.head.rotation.set(-s.lean * 0.5 * run + 0.06 * idle - 0.3 * du - 0.25 * sit + 0.42 * sc, c.headYaw.x * 0.55 + sway * 0.04 * idle, c.headTilt.x * 0.6 + sway * 0.05 * idle);
+    b.head.rotation.set(-s.lean * 0.5 * run + 0.06 * idle - 0.3 * du - 0.05 * sk + 0.42 * sc, c.headYaw.x * 0.55 + 0.25 * sk + sway * 0.04 * idle, c.headTilt.x * 0.6 + sway * 0.05 * idle);
     // --- 手臂：与同侧腿反向摆臂；受惊时举起；入场时右手挥手
     const up = Math.max(0, Math.min(1.2, c.armsUp.x)), wave = Math.max(0, c.wave.x), sa = s.arm * run;
     b.leftUpperArm.rotation.set(0.1 + 0.85 * sw * sa + up * 0.4, up * 0.3, -1.12 + up * 0.3);
@@ -113,8 +118,9 @@ export class Girl {
     b.leftLowerArm.rotation.set(0, -0.3 - 1.15 * sa - up * 1.2, 0);
     b.rightLowerArm.rotation.set(0, 0.3 + 1.15 * sa + up * 1.2 + wave * (0.9 + 0.5 * Math.sin(t * 11)), 0);
     b.leftHand.rotation.set(0, 0, -0.2); b.rightHand.rotation.set(0, 0, 0.2);
-    if (sit > 0.001) { // 坐地上，两手撑在身前
-      b.leftUpperArm.rotation.x += -0.35 * sit; b.rightUpperArm.rotation.x += -0.35 * sit; b.leftUpperArm.rotation.z += 0.2 * sit; b.rightUpperArm.rotation.z += -0.2 * sit;
+    if (sk > 0.001) { // 左手搭在扶手上，右手搭在翘起的膝盖上
+      b.leftUpperArm.rotation.set(-0.15 * sk, 0.1 * sk, -1.12 + 0.22 * sk); b.leftLowerArm.rotation.set(0, -0.3 - 0.9 * sk, 0);
+      b.rightUpperArm.rotation.set(-0.55 * sk, -0.25 * sk, 1.12 - 0.12 * sk); b.rightLowerArm.rotation.set(0, 0.3 + 0.7 * sk, 0); b.rightHand.rotation.set(0.3 * sk, 0, 0.2);
     }
 
 
@@ -133,6 +139,8 @@ export class Girl {
         hand.rotation.set(0.5 * ww, 0, sgn * -0.2);
       }
     }
+    const grip = du > 0.25 ? Math.min(1, (du - 0.25) / 0.55) : 0;
+    for (const [side, sg] of [['left', -1], ['right', 1]]) this.fingers[side].forEach((f, i) => { f.rotation.set(0, 0, sg * grip * (i % 3 === 0 ? 1.0 : 1.3)); });
     const em = this.vrm.expressionManager;
     if (em) {
       this.blinkT -= dt; if (this.blinkT < 0) { this.blink = 1; this.blinkT = 1.8 + Math.random() * 3; }

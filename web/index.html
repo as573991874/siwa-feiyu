@@ -54,7 +54,16 @@
   #stam.low i { background: #ff7a6b; }
   .btn { flex: 1; height: 72px; border: 2px solid #ffffff40; border-radius: 18px; background: #0c1a24b8; color: #fff; font: 800 15px/1.2 "Segoe UI", "Microsoft YaHei", sans-serif; display: grid; place-items: center; touch-action: none; }
   .btn small { display: block; font-weight: 600; font-size: 10px; opacity: .7; }
-  .btn.hot { border-color: #ff6f9f; background: #ff4d86c0; box-shadow: 0 0 18px #ff4d86; }
+  #bL { border-color: #3fd0ff88; } #bR { border-color: #ff5d8f88; }
+  #bL.hot { border-color: #8fe6ff; background: #1fb4ecd0; box-shadow: 0 0 22px #3fd0ff; }
+  #bR.hot { border-color: #ffa0bf; background: #ff4d86d0; box-shadow: 0 0 22px #ff5d8f; }
+  .mark { position: absolute; width: 66px; height: 66px; margin: -33px 0 0 -33px; pointer-events: none; opacity: 0; display: grid; place-items: center; }
+  .mark svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .mark circle { fill: #0008; stroke: #ffffff30; stroke-width: 4; }
+  .mark circle.arc { fill: none; stroke-width: 5; stroke-linecap: round; stroke-dasharray: 119.4; stroke-dashoffset: 119.4; }
+  #mL circle.arc { stroke: #3fd0ff; } #mR circle.arc { stroke: #ff5d8f; }
+  .mark b { position: relative; font: 900 24px/1 "Segoe UI", "Microsoft YaHei", sans-serif; text-shadow: 0 2px 4px #000c; }
+  #mL.ready circle:first-child { fill: #1fb4ecd8; } #mR.ready circle:first-child { fill: #ff4d86d8; }
   .btn.down { transform: scale(.95); filter: brightness(1.4); }
   #bSprint { flex: 1.25; background: #123a4cc0; }
   #bSprint.down { background: #2aa7d8d0; border-color: #9fe6ff; }
@@ -86,6 +95,8 @@
   <div id="bubble"></div><div id="pop"></div>
   <div id="big"><b></b><span></span></div>
   <div id="tip"></div>
+  <div class="mark" id="mL"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19"/><circle class="arc" cx="22" cy="22" r="19"/></svg><b>左</b></div>
+  <div class="mark" id="mR"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19"/><circle class="arc" cx="22" cy="22" r="19"/></svg><b>右</b></div>
   <div id="tug" class="hidden"><div class="who"><span>她</span><span>你</span></div><div class="bar"><i></i></div><div class="lab">狂点屏幕！别停！</div></div>
   <div id="stam" class="hidden"><i></i></div>
   <div id="pad" class="hidden">
